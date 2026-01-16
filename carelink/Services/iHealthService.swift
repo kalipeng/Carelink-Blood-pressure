@@ -5,6 +5,10 @@
 //  iHealth SDK 封装服务
 //  处理与 KN-550BT 血压计的所有通信
 //
+//  协议文档版本: 1.0
+//  设备型号: iHealth KN-550BT
+//  最后更新: 2026-01-15
+//
 
 import Foundation
 import CoreBluetooth
@@ -13,6 +17,7 @@ import CoreBluetooth
 extension Notification.Name {
     static let measurementStarted = Notification.Name("measurementStarted")
     static let measurementError = Notification.Name("measurementError")
+    static let batteryLevelUpdated = Notification.Name("batteryLevelUpdated")
 }
 
 // MARK: - iHealth 服务
@@ -20,22 +25,39 @@ class iHealthService: NSObject {
     
     static let shared = iHealthService()
     
-    // iHealth KN-550BT 蓝牙配置
+    // MARK: - iHealth KN-550BT 蓝牙 UUID（根据协议文档）
+    // 主服务: ASCII "com.jiuan.dev"
     private let serviceUUID = CBUUID(string: "636f6d2e-6a69-7561-6e2e-646576000000")
+    
+    // NOTIFY 特性: ASCII "sed." - 接收血压数据
     private let notifyCharUUID = CBUUID(string: "7365642e-6a69-7561-6e2e-646576000000")
+    
+    // WRITE 特性: ASCII "rec." - 发送命令到设备
     private let writeCharUUID = CBUUID(string: "7265632e-6a69-7561-6e2e-646576000000")
     
+    // 电池服务（标准 BLE）
+    private let batteryServiceUUID = CBUUID(string: "0000180F-0000-1000-8000-00805F9B34FB")
+    private let batteryLevelCharUUID = CBUUID(string: "00002A19-0000-1000-8000-00805F9B34FB")
+    
+    // MARK: - 蓝牙对象
     private var centralManager: CBCentralManager?
     private var peripheral: CBPeripheral?
     private var notifyCharacteristic: CBCharacteristic?
     private var writeCharacteristic: CBCharacteristic?
+    private var batteryCharacteristic: CBCharacteristic?
     
+    // MARK: - 状态
     private(set) var isInitialized = false
     private(set) var isConnected = false
     private(set) var isScanning = false
+    private(set) var batteryLevel: Int = 100
     
+    // MARK: - 回调
     private var measurementCallback: ((BloodPressureReading) -> Void)?
     private var connectionCallback: ((Bool, String?) -> Void)?
+    
+    // MARK: - 数据解析缓冲
+    private var dataBuffer = Data()
     
     private override init() {
         super.init()
@@ -148,32 +170,53 @@ class iHealthService: NSObject {
     }
     
     // MARK: - 解析数据
+    // MARK: - 数据解析（根据 iHealth KN-550BT 协议文档）
     private func parseBloodPressureData(_ data: Data) -> BloodPressureReading? {
-        print("📥 收到数据: \(data.hexString)")
+        print("📥 收到数据 (\(data.count) 字节): \(data.hexString)")
         
-        // 这是一个示例解析
-        // 实际格式需要参考 iHealth SDK 文档或通过抓包分析
-        guard data.count >= 7 else {
+        // 根据协议文档，最小数据包长度为 6 字节
+        guard data.count >= 6 else {
+            print("⚠️ 数据包太短 (< 6 字节)")
             return nil
         }
         
-        // 常见格式（需要验证）:
-        // Byte 0: 标志位
-        // Byte 1-2: 收缩压 (little-endian)
-        // Byte 3-4: 舒张压 (little-endian)
-        // Byte 5-6: 心率
+        // 检查数据包标识符 (Byte 0)
+        // 必须是 0xFD 或 0xFE
+        guard data[0] == 0xFD || data[0] == 0xFE else {
+            print("⚠️ 无效的数据包标识符: 0x\(String(format: "%02X", data[0]))")
+            return nil
+        }
         
+        // 解析数据（小端格式 Little Endian）
+        // Byte 1-2: 收缩压 (Systolic) - LSB first
         let systolic = Int(data[1]) | (Int(data[2]) << 8)
+        
+        // Byte 3-4: 舒张压 (Diastolic) - LSB first
         let diastolic = Int(data[3]) | (Int(data[4]) << 8)
+        
+        // Byte 5: 心率 (Pulse) - 单字节
         let pulse = Int(data[5])
         
-        // 合理性检查
-        guard (60...250).contains(systolic),
-              (40...150).contains(diastolic),
-              (40...200).contains(pulse) else {
-            print("⚠️ 数据异常")
+        // 数据合理性检查（根据协议文档的范围）
+        // 收缩压: 50-250 mmHg
+        // 舒张压: 30-150 mmHg
+        // 心率: 40-200 bpm
+        guard (50...250).contains(systolic) else {
+            print("⚠️ 收缩压超出范围: \(systolic) mmHg (应在 50-250)")
             return nil
         }
+        
+        guard (30...150).contains(diastolic) else {
+            print("⚠️ 舒张压超出范围: \(diastolic) mmHg (应在 30-150)")
+            return nil
+        }
+        
+        guard (40...200).contains(pulse) else {
+            print("⚠️ 心率超出范围: \(pulse) bpm (应在 40-200)")
+            return nil
+        }
+        
+        print("✅ 数据解析成功: \(systolic)/\(diastolic) mmHg, 心率 \(pulse) bpm")
         
         return BloodPressureReading(
             systolic: systolic,
@@ -208,10 +251,31 @@ extension iHealthService: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         
         let name = peripheral.name ?? "未知设备"
-        print("🔍 发现设备: \(name)")
+        let rssiValue = RSSI.intValue
         
-        // 自动连接第一个找到的设备
-        if !isConnected {
+        print("🔍 发现设备: \(name)")
+        print("   • MAC: \(peripheral.identifier.uuidString)")
+        print("   • RSSI: \(rssiValue) dBm")
+        
+        // 检查是否是 iHealth KN-550BT 设备
+        // 设备名称可能是 "KN-550BT" 或包含 "iHealth" 或 "KN-550"
+        let isIHealthDevice = name.contains("KN-550BT") ||
+                              name.contains("iHealth") ||
+                              name.contains("KN-550")
+        
+        if !isIHealthDevice {
+            print("   ⏭️ 不是 iHealth 设备，跳过")
+            return
+        }
+        
+        // 检查信号强度（避免连接信号太弱的设备）
+        if rssiValue < -80 {
+            print("   ⚠️ 信号太弱 (\(rssiValue) dBm)，建议靠近设备")
+        }
+        
+        // 自动连接找到的 iHealth 设备
+        if !isConnected && self.peripheral == nil {
+            print("   ✨ 找到 iHealth KN-550BT，准备连接...")
             stopScanning()
             connect(to: peripheral) { success, message in
                 self.connectionCallback?(success, message)
@@ -221,10 +285,9 @@ extension iHealthService: CBCentralManagerDelegate {
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("✅ 设备已连接: \(peripheral.name ?? "未知")")
-        isConnected = true
         
-        // 发现服务
-        peripheral.discoverServices([serviceUUID])
+        // 发现服务（包括 iHealth 主服务和电池服务）
+        peripheral.discoverServices([serviceUUID, batteryServiceUUID])
         
         NotificationCenter.default.post(name: .deviceConnected, object: peripheral)
     }
@@ -255,15 +318,27 @@ extension iHealthService: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         if let error = error {
             print("❌ 发现服务失败: \(error)")
+            connectionCallback?(false, "发现服务失败")
             return
         }
         
         guard let services = peripheral.services else { return }
         
+        print("🔍 找到 \(services.count) 个服务")
+        
         for service in services {
-            print("🔍 发现服务: \(service.uuid)")
+            print("   • 服务: \(service.uuid)")
+            
+            // iHealth 主服务
             if service.uuid == serviceUUID {
+                print("   ✅ iHealth 主服务")
                 peripheral.discoverCharacteristics([notifyCharUUID, writeCharUUID], for: service)
+            }
+            
+            // 电池服务
+            else if service.uuid == batteryServiceUUID {
+                print("   🔋 电池服务")
+                peripheral.discoverCharacteristics([batteryLevelCharUUID], for: service)
             }
         }
     }
@@ -279,21 +354,41 @@ extension iHealthService: CBPeripheralDelegate {
         for characteristic in characteristics {
             print("🔍 发现特性: \(characteristic.uuid)")
             
+            // iHealth 主服务的特性
             if characteristic.uuid == notifyCharUUID {
                 notifyCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
-                print("✅ 订阅通知特性")
+                print("✅ 订阅数据通知特性 (NOTIFY)")
             }
             
             if characteristic.uuid == writeCharUUID {
                 writeCharacteristic = characteristic
-                print("✅ 找到写入特性")
+                print("✅ 找到命令写入特性 (WRITE)")
+            }
+            
+            // 电池服务特性
+            if characteristic.uuid == batteryLevelCharUUID {
+                batteryCharacteristic = characteristic
+                // 读取电池电量
+                peripheral.readValue(for: characteristic)
+                // 订阅电池电量变化通知（如果支持）
+                if characteristic.properties.contains(.notify) {
+                    peripheral.setNotifyValue(true, for: characteristic)
+                }
+                print("✅ 找到电池电量特性")
             }
         }
         
-        // 连接完成
-        if notifyCharacteristic != nil && writeCharacteristic != nil {
+        // iHealth 主服务连接完成
+        if service.uuid == serviceUUID &&
+           notifyCharacteristic != nil &&
+           writeCharacteristic != nil {
+            isConnected = true
+            print("🎉 iHealth KN-550BT 设备已就绪")
             connectionCallback?(true, "设备已就绪")
+            
+            // 发送连接成功通知
+            NotificationCenter.default.post(name: .deviceConnected, object: nil)
         }
     }
     
@@ -305,7 +400,23 @@ extension iHealthService: CBPeripheralDelegate {
         
         guard let data = characteristic.value else { return }
         
-        // 解析血压数据
+        // 根据特性 UUID 处理不同类型的数据
+        switch characteristic.uuid {
+        case notifyCharUUID:
+            // iHealth 血压数据
+            handleBloodPressureData(data)
+            
+        case batteryLevelCharUUID:
+            // 电池电量数据
+            handleBatteryData(data)
+            
+        default:
+            print("📦 未知特性数据: \(characteristic.uuid)")
+        }
+    }
+    
+    // MARK: - 处理血压数据
+    private func handleBloodPressureData(_ data: Data) {
         if let reading = parseBloodPressureData(data) {
             print("🩺 测量完成: \(reading.systolic)/\(reading.diastolic) mmHg, 心率: \(reading.pulse) bpm")
             
@@ -320,6 +431,30 @@ extension iHealthService: CBPeripheralDelegate {
                 name: .measurementCompleted,
                 object: reading
             )
+            
+            // 语音播报 (暂时不需要)
+            // VoiceService.shared.speakMeasurement(reading)
+        }
+    }
+    
+    // MARK: - 处理电池数据
+    private func handleBatteryData(_ data: Data) {
+        guard data.count > 0 else { return }
+        
+        let level = Int(data[0])
+        batteryLevel = level
+        
+        print("🔋 电池电量: \(level)%")
+        
+        // 发送电池电量更新通知
+        NotificationCenter.default.post(
+            name: .batteryLevelUpdated,
+            object: level
+        )
+        
+        // 如果电量过低，发出警告
+        if level < 20 {
+            print("⚠️ 电池电量低，请充电")
         }
     }
     

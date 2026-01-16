@@ -18,8 +18,18 @@ logger = logging.getLogger(__name__)
 
 # iHealth device configuration
 IHEALTH_DEVICE_NAME = "KN-550BT"
-IHEALTH_SERVICE_UUID = "00001810-0000-1000-8000-00805f9b34fb"  # Blood Pressure Service
-MEASUREMENT_CHAR_UUID = "00002a35-0000-1000-8000-00805f9b34fb"  # Blood Pressure Measurement
+
+# iHealth KN-550BT uses custom UUIDs (not standard BLE)
+# Service UUID: com.jiuan.dev (custom UUID)
+IHEALTH_SERVICE_UUID = "6d6f2e6a-6975-616e-2e64-657600000000"  # Custom iHealth service
+
+# Characteristic UUIDs
+IHEALTH_SEND_CHAR = "7365642e-6a69-7561-6e2e-646576000000"      # sed.* (send to phone)
+IHEALTH_RECEIVE_CHAR = "7265632e-6a69-7561-6e2e-646576000000"    # rec.* (receive from phone)
+
+# Fallback to standard BLE UUIDs (for compatibility)
+STANDARD_SERVICE_UUID = "00001810-0000-1000-8000-00805f9b34fb"   # Blood Pressure Service
+STANDARD_CHAR_UUID = "00002a35-0000-1000-8000-00805f9b34fb"      # Blood Pressure Measurement
 
 class HealthPadBackend:
     def __init__(self):
@@ -30,20 +40,59 @@ class HealthPadBackend:
         self.websocket_clients = set()
 
     async def scan_devices(self):
-        """Scan for iHealth devices"""
+        """Scan for iHealth devices with detailed information"""
         logger.info("Scanning for iHealth devices...")
+        logger.info("=" * 60)
         devices = await BleakScanner.discover(timeout=10.0)
         
         ihealth_devices = []
-        for device in devices:
-            if device.name and IHEALTH_DEVICE_NAME in device.name:
-                ihealth_devices.append({
-                    'name': device.name,
-                    'address': device.address,
-                    'rssi': device.rssi
-                })
-                logger.info(f"Found: {device.name} ({device.address})")
+        logger.info(f"Found {len(devices)} total BLE devices:")
         
+        for device in devices:
+            device_info = {
+                'name': device.name or 'Unknown',
+                'address': device.address,
+                'rssi': device.rssi,
+            }
+            
+            # Log all devices for debugging
+            logger.info(f"  - {device.name} ({device.address}) RSSI: {device.rssi}")
+            
+            # Check if it's an iHealth device
+            if device.name and IHEALTH_DEVICE_NAME in device.name:
+                logger.info(f"✓ Found iHealth: {device.name} ({device.address})")
+                
+                # Try to get more details
+                try:
+                    # Attempt to read characteristics if connected
+                    async with BleakClient(device.address) as client:
+                        services = await client.get_services()
+                        device_info['services'] = []
+                        
+                        for service in services:
+                            service_info = {
+                                'uuid': str(service.uuid),
+                                'characteristics': []
+                            }
+                            
+                            for char in service.characteristics:
+                                char_info = {
+                                    'uuid': str(char.uuid),
+                                    'properties': char.properties
+                                }
+                                service_info['characteristics'].append(char_info)
+                            
+                            device_info['services'].append(service_info)
+                        
+                        logger.info(f"  Services found: {len(services)}")
+                        for svc in services:
+                            logger.info(f"    - {svc.uuid}")
+                except Exception as e:
+                    logger.warning(f"  Could not scan services: {e}")
+                
+                ihealth_devices.append(device_info)
+        
+        logger.info("=" * 60)
         return ihealth_devices
 
     async def connect_device(self, address):
@@ -53,13 +102,63 @@ class HealthPadBackend:
             self.client = BleakClient(address)
             await self.client.connect()
             self.connected = True
-            logger.info("Connected successfully!")
+            logger.info("✓ Connected successfully!")
             
-            # Subscribe to measurement notifications
-            await self.client.start_notify(
-                MEASUREMENT_CHAR_UUID,
-                self.measurement_callback
-            )
+            # Get services and characteristics
+            logger.info("=" * 60)
+            logger.info("Device Services and Characteristics:")
+            logger.info("=" * 60)
+            
+            services = await self.client.get_services()
+            logger.info(f"Total services: {len(services)}")
+            
+            found_measurement_char = False
+            
+            for service in services:
+                logger.info(f"\nService: {service.uuid}")
+                
+                for char in service.characteristics:
+                    logger.info(f"  ├─ Characteristic: {char.uuid}")
+                    logger.info(f"  │  Properties: {char.properties}")
+                    
+                    # Try to find measurement characteristic
+                    # Check if this matches our iHealth UUIDs
+                    if 'read' in char.properties or 'notify' in char.properties:
+                        logger.info(f"  │  ✓ Can read/notify")
+                        
+                        # Check if it matches known measurement characteristics
+                        uuid_str = str(char.uuid).lower()
+                        if ('sed' in uuid_str or 'rec' in uuid_str or 
+                            '2a35' in uuid_str or 'pressure' in char.properties):
+                            logger.info(f"  │  ⭐ Possible measurement characteristic")
+                            found_measurement_char = True
+                            
+                            # Subscribe to notifications if notify is supported
+                            if 'notify' in char.properties:
+                                try:
+                                    await self.client.start_notify(
+                                        char.uuid,
+                                        self.measurement_callback
+                                    )
+                                    logger.info(f"  │  ✓ Subscribed to notifications")
+                                except Exception as e:
+                                    logger.warning(f"  │  Could not subscribe: {e}")
+            
+            logger.info("=" * 60)
+            
+            if found_measurement_char:
+                logger.info("✓ Found potential measurement characteristic")
+            else:
+                logger.warning("⚠ No measurement characteristic found, trying fallback...")
+                # Try standard UUIDs as fallback
+                try:
+                    await self.client.start_notify(
+                        STANDARD_CHAR_UUID,
+                        self.measurement_callback
+                    )
+                    logger.info("✓ Subscribed to standard BLE measurement characteristic")
+                except Exception as e:
+                    logger.warning(f"Fallback subscription failed: {e}")
             
             return True
         except Exception as e:

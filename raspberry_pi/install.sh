@@ -18,49 +18,71 @@ if ! grep -q "Raspberry Pi" /proc/cpuinfo; then
     fi
 fi
 
-echo "Step 1: Updating system..."
+echo "Step 1: Enabling SSH..."
+sudo systemctl enable ssh
+sudo systemctl start ssh
+echo "✓ SSH enabled"
+
+echo ""
+echo "Step 2: Updating system..."
 sudo apt-get update
 sudo apt-get upgrade -y
 
 echo ""
-echo "Step 2: Installing Python dependencies..."
+echo "Step 3: Installing core dependencies..."
 sudo apt-get install -y python3 python3-pip python3-venv
-sudo apt-get install -y bluez bluez-tools
+sudo apt-get install -y bluez bluez-tools avahi-daemon
 
 echo ""
-echo "Step 3: Creating virtual environment..."
+echo "Step 4: Configuring mDNS hostname..."
+CURRENT_HOSTNAME=$(hostname)
+if [ "$CURRENT_HOSTNAME" != "carelink-bp" ]; then
+    echo "Current hostname: $CURRENT_HOSTNAME"
+    sudo hostnamectl set-hostname carelink-bp
+    echo "✓ Hostname set to: carelink-bp"
+fi
+
+# Enable avahi daemon for .local domain resolution
+sudo systemctl enable avahi-daemon
+sudo systemctl start avahi-daemon
+echo "✓ mDNS (Avahi) enabled"
+
+echo ""
+echo "Step 5: Creating virtual environment..."
 python3 -m venv venv
 source venv/bin/activate
 
 echo ""
-echo "Step 4: Installing Python packages..."
+echo "Step 6: Installing Python packages..."
 pip install --upgrade pip
 pip install bleak aiohttp aiohttp-cors websockets
 
 echo ""
-echo "Step 5: Installing Chromium browser..."
+echo "Step 7: Installing Chromium browser..."
 sudo apt-get install -y chromium-browser unclutter
 
 echo ""
-echo "Step 6: Configuring touchscreen..."
+echo "Step 8: Configuring touchscreen..."
 # ELECROW 10.1" touchscreen usually works out of the box
 # If rotation needed:
 # sudo sh -c 'echo "lcd_rotate=2" >> /boot/config.txt'
 
 echo ""
-echo "Step 7: Setting up autostart..."
+echo "Step 9: Setting up autostart..."
 mkdir -p ~/.config/autostart
 
 # Create desktop entry for kiosk mode
+# Get home directory dynamically (works for any username)
+HOME_DIR=$(eval echo ~$USER)
 cat > ~/.config/autostart/healthpad.desktop <<EOF
 [Desktop Entry]
 Type=Application
 Name=Health Pad
-Exec=/home/pi/healthpad/start_kiosk.sh
+Exec=$HOME_DIR/healthpad/start_kiosk.sh
 EOF
 
 echo ""
-echo "Step 8: Creating startup script..."
+echo "Step 10: Creating startup script..."
 cat > ~/healthpad/start_kiosk.sh <<'EOF'
 #!/bin/bash
 
@@ -90,9 +112,10 @@ EOF
 chmod +x ~/healthpad/start_kiosk.sh
 
 echo ""
-echo "Step 9: Enabling Bluetooth..."
+echo "Step 11: Enabling Bluetooth..."
 sudo systemctl enable bluetooth
 sudo systemctl start bluetooth
+echo "✓ Bluetooth enabled"
 
 echo ""
 echo "=========================================="

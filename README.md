@@ -46,6 +46,15 @@ Health Pad/
 
 ## 🚀 Quick Start
 
+### For First-Time Setup → See [RASPBERRY_PI_SETUP.md](RASPBERRY_PI_SETUP.md)
+
+This guide covers:
+- ✅ Waiting for first boot
+- ✅ Network connectivity
+- ✅ SSH connection
+- ✅ Remote installation
+- ✅ Troubleshooting
+
 ### Step 1: Flash Raspberry Pi OS
 1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
 2. Flash **Raspberry Pi OS (with Desktop)** to microSD card

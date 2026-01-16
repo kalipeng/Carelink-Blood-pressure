@@ -140,12 +140,44 @@ class HomeViewController: UIViewController {
         setupNotifications()
         updateDateTime()
         updateDeviceStatus()
+        
+        // 🧪 调试：打印当前保存的数据
+        #if DEBUG
+        print("\n🏠 [HomeVC] ========== App 启动 ==========")
+        DebugHelper.printSavedData()
+        
+        // 🎯 取消注释下面这行可以自动添加测试数据
+        // DebugHelper.addTestData()
+        
+        // 添加一个隐藏的测试手势（三指双击标题添加测试数据）
+        let testGesture = UITapGestureRecognizer(target: self, action: #selector(handleDebugTap))
+        testGesture.numberOfTapsRequired = 2
+        testGesture.numberOfTouchesRequired = 3
+        titleLabel.addGestureRecognizer(testGesture)
+        titleLabel.isUserInteractionEnabled = true
+        #endif
     }
+    
+    #if DEBUG
+    @objc private func handleDebugTap() {
+        print("🧪 [HomeVC] 调试手势触发：添加测试数据")
+        DebugHelper.addTestData()
+        
+        // 震动反馈
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+    }
+    #endif
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         updateDateTime()
         updateDeviceStatus()
+        
+        // 🔄 每次显示时重新加载数据统计
+        #if DEBUG
+        DebugHelper.printSavedData()
+        #endif
     }
     
     // MARK: - Setup

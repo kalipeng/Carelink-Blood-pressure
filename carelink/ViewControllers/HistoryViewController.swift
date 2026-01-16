@@ -106,7 +106,15 @@ class HistoryViewController: UIViewController {
     }
     
     private func loadData() {
+        print("📖 [HistoryVC] 开始加载历史数据...")
         readings = BloodPressureReading.load()
+        print("📊 [HistoryVC] 加载了 \(readings.count) 条记录")
+        
+        // 打印最近 3 条记录
+        for (index, reading) in readings.prefix(3).enumerated() {
+            print("   \(index + 1). \(reading.formattedValue) mmHg - \(reading.category)")
+        }
+        
         tableView.reloadData()
         
         emptyStateLabel.isHidden = !readings.isEmpty

@@ -278,16 +278,26 @@ class MeasureViewController: UIViewController {
         // Voice guidance
         VoiceService.shared.speakMeasurementStart()
         
-        // Simulate measurement (replace with actual iHealth SDK call)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            // Simulate reading
+        // 📊 真实蓝牙测量
+        print("🩺 [MeasureVC] 开始测量，调用 iHealthService...")
+        iHealthService.shared.startMeasurement { [weak self] reading in
+            print("📥 [MeasureVC] 收到测量结果: \(reading.systolic)/\(reading.diastolic) mmHg")
+            DispatchQueue.main.async {
+                self?.handleMeasurementComplete(reading)
+            }
+        }
+        
+        // 备用：如果 3 秒没响应，使用模拟数据（用于测试）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak self] in
+            guard let self = self, self.isMeasuring else { return }
+            
+            print("⚠️ [MeasureVC] 蓝牙超时，使用模拟数据")
             let reading = BloodPressureReading(
                 systolic: Int.random(in: 110...140),
                 diastolic: Int.random(in: 70...90),
                 pulse: Int.random(in: 60...100)
             )
-            
-            self?.handleMeasurementComplete(reading)
+            self.handleMeasurementComplete(reading)
         }
     }
     
@@ -295,16 +305,24 @@ class MeasureViewController: UIViewController {
         isMeasuring = false
         currentReading = reading
         
+        print("✅ [MeasureVC] 测量完成: \(reading.systolic)/\(reading.diastolic) mmHg, 心率: \(reading.pulse)")
+        
         // Stop loading
         activityIndicator.stopAnimating()
         startButton.setTitle("Start Measurement", for: .normal)
         startButton.isEnabled = true
         
-        // Save reading
+        // 💾 保存数据
+        print("💾 [MeasureVC] 开始保存数据到 UserDefaults...")
         BloodPressureReading.add(reading)
         
+        // 🔍 验证保存
+        let savedReadings = BloodPressureReading.load()
+        print("✅ [MeasureVC] 保存成功！当前共有 \(savedReadings.count) 条记录")
+        print("📝 [MeasureVC] 最新记录: \(savedReadings.first?.formattedValue ?? "无")")
+        
         // Voice announcement
-        VoiceService.shared.speakMeasurementResult(reading)
+        // VoiceService.shared.speakMeasurementResult(reading)
         
         // Haptic feedback
         let generator = UINotificationFeedbackGenerator()

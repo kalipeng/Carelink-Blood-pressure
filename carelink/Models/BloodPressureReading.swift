@@ -89,9 +89,19 @@ struct BloodPressureReading: Codable {
     
     // 保存单个读数
     static func add(_ reading: BloodPressureReading) {
+        print("💾 [BloodPressureReading] 开始保存数据...")
+        print("   • 收缩压: \(reading.systolic) mmHg")
+        print("   • 舒张压: \(reading.diastolic) mmHg")
+        print("   • 心率: \(reading.pulse) bpm")
+        print("   • 时间: \(reading.timestamp)")
+        
         var readings = load()
+        print("💾 [BloodPressureReading] 当前已有 \(readings.count) 条记录")
+        
         readings.insert(reading, at: 0) // 最新的在前
         save(readings)
+        
+        print("✅ [BloodPressureReading] 保存完成！总共 \(readings.count) 条记录")
     }
     
     // 加载所有读数

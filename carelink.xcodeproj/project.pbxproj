@@ -19,19 +19,8 @@
 		D3507B232F19F1280096F9BC /* ExternalAccessory.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ExternalAccessory.framework; path = System/Library/Frameworks/ExternalAccessory.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		D3507B152F19F1270096F9B9 /* carelink */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				D3507B282F19F1280096F9C1 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-			);
-			path = carelink;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
-
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D3507B282F19F1280096F9C1 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		D3507B282F19F1280096F9C1 /* Exceptions for "carelink" folder in "carelink" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -39,6 +28,17 @@
 			target = D3507B122F19F1270096F9B9 /* carelink */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		D3507B152F19F1270096F9B9 /* carelink */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D3507B282F19F1280096F9C1 /* Exceptions for "carelink" folder in "carelink" target */,
+			);
+			path = carelink;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D3507B102F19F1270096F9B9 /* Frameworks */ = {

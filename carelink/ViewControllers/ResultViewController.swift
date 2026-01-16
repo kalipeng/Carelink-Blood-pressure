@@ -46,6 +46,45 @@ class ResultViewController: UIViewController {
         let label = UILabel()
         label.font = .systemFont(ofSize: 24)
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
+        label.numberOfLines = 0
+        return label
+    }()
+    
+    // 🔍 数据来源标签
+    private let sourceLabel: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.textColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0)
+        label.textAlignment = .right
+        return label
+    }()
+    
+    // ⚠️ 模拟数据警告横幅
+    private let simulatedWarningBanner: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 1.0, green: 0.95, blue: 0.7, alpha: 1.0)
+        view.layer.cornerRadius = 16
+        view.layer.borderWidth = 2
+        view.layer.borderColor = UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0).cgColor
+        view.isHidden = true  // 默认隐藏
+        return view
+    }()
+    
+    private let warningIconLabel: UILabel = {
+        let label = UILabel()
+        label.text = "⚠️"
+        label.font = .systemFont(ofSize: 32)
+        label.textAlignment = .center
+        return label
+    }()
+    
+    private let warningTextLabel: UILabel = {
+        let label = UILabel()
+        label.text = "这是模拟数据（测试用）\n请连接血压计获取真实数据"
+        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.textColor = UIColor(red: 0.6, green: 0.3, blue: 0.0, alpha: 1.0)
+        label.numberOfLines = 0
+        label.textAlignment = .center
         return label
     }()
     
@@ -117,8 +156,12 @@ class ResultViewController: UIViewController {
         scrollView.addSubview(contentView)
         
         contentView.addSubview(backButton)
+        contentView.addSubview(simulatedWarningBanner)
+        simulatedWarningBanner.addSubview(warningIconLabel)
+        simulatedWarningBanner.addSubview(warningTextLabel)
         contentView.addSubview(resultTitleLabel)
         contentView.addSubview(timeLabel)
+        contentView.addSubview(sourceLabel)
         contentView.addSubview(cardsStackView)
         contentView.addSubview(statusBanner)
         
@@ -227,8 +270,12 @@ class ResultViewController: UIViewController {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
         backButton.translatesAutoresizingMaskIntoConstraints = false
+        simulatedWarningBanner.translatesAutoresizingMaskIntoConstraints = false
+        warningIconLabel.translatesAutoresizingMaskIntoConstraints = false
+        warningTextLabel.translatesAutoresizingMaskIntoConstraints = false
         resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        sourceLabel.translatesAutoresizingMaskIntoConstraints = false
         cardsStackView.translatesAutoresizingMaskIntoConstraints = false
         statusBanner.translatesAutoresizingMaskIntoConstraints = false
         statusIconView.translatesAutoresizingMaskIntoConstraints = false
@@ -253,13 +300,31 @@ class ResultViewController: UIViewController {
             backButton.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 20),
             backButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 48),
             
-            resultTitleLabel.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 80),
+            // ⚠️ 警告横幅（模拟数据时显示）
+            simulatedWarningBanner.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 20),
+            simulatedWarningBanner.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
+            simulatedWarningBanner.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
+            simulatedWarningBanner.heightAnchor.constraint(greaterThanOrEqualToConstant: 80),
+            
+            warningIconLabel.leadingAnchor.constraint(equalTo: simulatedWarningBanner.leadingAnchor, constant: 20),
+            warningIconLabel.centerYAnchor.constraint(equalTo: simulatedWarningBanner.centerYAnchor),
+            warningIconLabel.widthAnchor.constraint(equalToConstant: 50),
+            
+            warningTextLabel.leadingAnchor.constraint(equalTo: warningIconLabel.trailingAnchor, constant: 12),
+            warningTextLabel.trailingAnchor.constraint(equalTo: simulatedWarningBanner.trailingAnchor, constant: -20),
+            warningTextLabel.centerYAnchor.constraint(equalTo: simulatedWarningBanner.centerYAnchor),
+            
+            resultTitleLabel.topAnchor.constraint(equalTo: simulatedWarningBanner.bottomAnchor, constant: 32),
             resultTitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
             
-            timeLabel.centerYAnchor.constraint(equalTo: resultTitleLabel.centerYAnchor),
-            timeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
+            timeLabel.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 8),
+            timeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
+            timeLabel.trailingAnchor.constraint(lessThanOrEqualTo: sourceLabel.leadingAnchor, constant: -20),
             
-            cardsStackView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 40),
+            sourceLabel.centerYAnchor.constraint(equalTo: timeLabel.centerYAnchor),
+            sourceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
+            
+            cardsStackView.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 32),
             cardsStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
             cardsStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
             cardsStackView.heightAnchor.constraint(equalToConstant: 300),
@@ -291,16 +356,59 @@ class ResultViewController: UIViewController {
     
     // MARK: - Display Result
     private func displayResult() {
-        // Update time
+        // 🔍 完整的时间戳显示
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        let timeString = formatter.string(from: reading.timestamp)
+        formatter.dateFormat = "MMM d, yyyy  HH:mm:ss"
+        let fullTimeString = formatter.string(from: reading.timestamp)
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMM d, yyyy"
-        let dateString = dateFormatter.string(from: reading.timestamp)
+        // 计算时间差
+        let timeAgo = getTimeAgoString(from: reading.timestamp)
         
-        timeLabel.text = "Today \(timeString)"
+        timeLabel.text = "\(fullTimeString)\n\(timeAgo)"
+        
+        // 🔍 数据来源显示
+        let sourceEmoji: String
+        let sourceText: String
+        
+        switch reading.source {
+        case "bluetooth":
+            sourceEmoji = "📱"
+            sourceText = "真实测量"
+        case "simulated":
+            sourceEmoji = "🧪"
+            sourceText = "模拟数据"
+        case "manual":
+            sourceEmoji = "✍️"
+            sourceText = "手动输入"
+        default:
+            sourceEmoji = "❓"
+            sourceText = "未知来源"
+        }
+        
+        sourceLabel.text = "\(sourceEmoji) \(sourceText)"
+        
+        // ⚠️ 如果是模拟数据，显示警告横幅
+        if reading.source == "simulated" {
+            simulatedWarningBanner.isHidden = false
+            print("\n⚠️⚠️⚠️ [ResultVC] 警告：这是模拟数据！ ⚠️⚠️⚠️")
+        } else {
+            simulatedWarningBanner.isHidden = true
+        }
+        
+        // 🔍 打印调试信息
+        print("\n📊 [ResultVC] ========== 显示测量结果 ==========")
+        print("   ID: \(reading.id.uuidString.prefix(8))...")
+        print("   数值: \(reading.systolic)/\(reading.diastolic) mmHg")
+        print("   心率: \(reading.pulse) bpm")
+        print("   时间: \(fullTimeString)")
+        print("   来源: \(reading.source) (\(sourceText))")
+        print("   分类: \(reading.category)")
+        
+        if reading.source == "simulated" {
+            print("   ⚠️ 注意：这是模拟数据，不是真实测量！")
+        }
+        
+        print("📊 [ResultVC] ========================================\n")
         
         // Update status banner based on category
         let category = reading.category
@@ -384,5 +492,26 @@ class ResultViewController: UIViewController {
         
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
+    }
+    
+    // MARK: - Helper Methods
+    private func getTimeAgoString(from date: Date) -> String {
+        let now = Date()
+        let timeInterval = now.timeIntervalSince(date)
+        
+        if timeInterval < 0 {
+            return "刚刚" // 未来时间（时钟不同步）
+        } else if timeInterval < 60 {
+            return "刚刚 (< 1 分钟)"
+        } else if timeInterval < 3600 {
+            let minutes = Int(timeInterval / 60)
+            return "\(minutes) 分钟前"
+        } else if timeInterval < 86400 {
+            let hours = Int(timeInterval / 3600)
+            return "\(hours) 小时前"
+        } else {
+            let days = Int(timeInterval / 86400)
+            return "\(days) 天前"
+        }
     }
 }

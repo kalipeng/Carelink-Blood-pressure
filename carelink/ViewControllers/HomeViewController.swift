@@ -156,6 +156,27 @@ class HomeViewController: UIViewController {
         titleLabel.addGestureRecognizer(testGesture)
         titleLabel.isUserInteractionEnabled = true
         #endif
+        
+        // 🔍 添加蓝牙检查手势（双击设备状态区域）
+        let connectionCheckGesture = UITapGestureRecognizer(target: self, action: #selector(checkBluetoothConnection))
+        connectionCheckGesture.numberOfTapsRequired = 2
+        deviceStatusView.addGestureRecognizer(connectionCheckGesture)
+        deviceStatusView.isUserInteractionEnabled = true
+        
+        // 🔧 强制连接手势（三次点击设备状态区域）
+        let forceConnectGesture = UITapGestureRecognizer(target: self, action: #selector(forceConnect))
+        forceConnectGesture.numberOfTapsRequired = 3
+        deviceStatusView.addGestureRecognizer(forceConnectGesture)
+        
+        // 🔌 启动时自动强制连接（如果未连接）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            if !iHealthService.shared.isConnected {
+                print("\n⚡ [HomeVC] 检测到未连接，启动自动连接流程...")
+                BluetoothConnectionHelper.fullConnectionWorkflow()
+            } else {
+                print("\n✅ [HomeVC] 设备已连接")
+            }
+        }
     }
     
     #if DEBUG
@@ -346,17 +367,20 @@ class HomeViewController: UIViewController {
     }
     
     private func updateDeviceStatus() {
-        // 这里需要检查实际的设备连接状态
-        // 暂时使用模拟状态
-        let isConnected = false // 从 iHealthService 获取实际状态
+        // 🔍 从 iHealthService 获取实际连接状态
+        let isConnected = iHealthService.shared.isConnected
+        
+        print("🔌 [HomeVC] 更新设备状态: \(isConnected ? "已连接" : "未连接")")
         
         if isConnected {
             statusDot.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
             statusLabel.text = "Connected"
             statusLabel.textColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
+            print("✅ [HomeVC] 设备已连接 - 可以进行测量")
         } else {
             statusDot.backgroundColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
             statusLabel.text = "Not Connected"
+            print("⚠️ [HomeVC] 设备未连接 - 测量将使用模拟数据")
             statusLabel.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         }
     }
@@ -397,6 +421,60 @@ class HomeViewController: UIViewController {
     }
     
     @objc private func deviceConnectionChanged() {
+        print("📡 [HomeVC] 收到设备连接状态变化通知")
+        updateDeviceStatus()
+    }
+    
+    // MARK: - 🔧 强制连接蓝牙设备
+    @objc private func forceConnect() {
+        print("\n🔧 [HomeVC] 用户触发强制连接")
+        
+        // 震动反馈
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.warning)
+        
+        // 执行完整连接流程
+        BluetoothConnectionHelper.fullConnectionWorkflow()
+    }
+    
+    // MARK: - 🔍 蓝牙连接检查工具
+    @objc private func checkBluetoothConnection() {
+        print("\n🔍 [HomeVC] ========== 蓝牙连接检查 ==========")
+        
+        let service = iHealthService.shared
+        print("📊 [HomeVC] 服务状态:")
+        print("   • 已初始化: \(service.isInitialized)")
+        print("   • 已连接: \(service.isConnected)")
+        print("   • 正在扫描: \(service.isScanning)")
+        
+        if service.isConnected {
+            print("✅ [HomeVC] 蓝牙已连接，可以进行测量")
+        } else if service.isInitialized {
+            print("⚠️ [HomeVC] 服务已初始化，但未连接设备")
+            print("💡 [HomeVC] 建议：启动蓝牙扫描")
+            
+            // 自动启动扫描
+            service.scanDevices { success, message in
+                print(success ? "✅ [HomeVC] 扫描启动成功" : "❌ [HomeVC] 扫描失败: \(message ?? "")")
+            }
+        } else {
+            print("❌ [HomeVC] 服务未初始化")
+            print("💡 [HomeVC] 建议：初始化 iHealthService")
+            
+            // 自动初始化
+            service.initialize { success in
+                print(success ? "✅ [HomeVC] 初始化成功" : "❌ [HomeVC] 初始化失败")
+                if success {
+                    service.scanDevices { scanSuccess, message in
+                        print(scanSuccess ? "✅ [HomeVC] 扫描启动成功" : "❌ [HomeVC] 扫描失败: \(message ?? "")")
+                    }
+                }
+            }
+        }
+        
+        print("🔍 [HomeVC] ========================================\n")
+        
+        // 更新状态显示
         updateDeviceStatus()
     }
 }

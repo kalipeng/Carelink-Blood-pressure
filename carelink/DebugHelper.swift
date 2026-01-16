@@ -14,9 +14,9 @@ class DebugHelper {
         print("🧪 [DebugHelper] 开始添加测试数据...")
         
         let testReadings = [
-            BloodPressureReading(systolic: 120, diastolic: 80, pulse: 72),
-            BloodPressureReading(systolic: 135, diastolic: 85, pulse: 78),
-            BloodPressureReading(systolic: 118, diastolic: 75, pulse: 68),
+            BloodPressureReading(systolic: 120, diastolic: 80, pulse: 72, source: "simulated"),
+            BloodPressureReading(systolic: 135, diastolic: 85, pulse: 78, source: "simulated"),
+            BloodPressureReading(systolic: 118, diastolic: 75, pulse: 68, source: "simulated"),
         ]
         
         for (index, reading) in testReadings.enumerated() {
@@ -64,7 +64,8 @@ class DebugHelper {
         let testReading = BloodPressureReading(
             systolic: 125,
             diastolic: 82,
-            pulse: 75
+            pulse: 75,
+            source: "simulated"
         )
         BloodPressureReading.add(testReading)
         

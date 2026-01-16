@@ -258,7 +258,22 @@ class ModernHistoryCell: UITableViewCell {
         dateLabel.text = formatter.string(from: reading.timestamp)
         
         formatter.dateFormat = "hh:mm a"
-        timeLabel.text = formatter.string(from: reading.timestamp)
+        let timeString = formatter.string(from: reading.timestamp)
+        
+        // 🔍 添加数据来源标识
+        let sourceEmoji: String
+        switch reading.source {
+        case "bluetooth":
+            sourceEmoji = "📱"
+        case "simulated":
+            sourceEmoji = "🧪"
+        case "manual":
+            sourceEmoji = "✍️"
+        default:
+            sourceEmoji = "❓"
+        }
+        
+        timeLabel.text = "\(sourceEmoji) \(timeString)"
         
         categoryLabel.text = getCategoryEnglish(reading.category)
         categoryBadge.backgroundColor = reading.categoryColor

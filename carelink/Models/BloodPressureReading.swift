@@ -14,13 +14,22 @@ struct BloodPressureReading: Codable {
     let diastolic: Int      // 舒张压 (低压)
     let pulse: Int          // 心率
     let timestamp: Date     // 测量时间
+    let source: String      // 数据来源: "bluetooth", "simulated", "manual"
     
-    init(systolic: Int, diastolic: Int, pulse: Int, timestamp: Date = Date()) {
+    init(systolic: Int, diastolic: Int, pulse: Int, timestamp: Date = Date(), source: String = "simulated") {
         self.id = UUID()
         self.systolic = systolic
         self.diastolic = diastolic
         self.pulse = pulse
         self.timestamp = timestamp
+        self.source = source
+        
+        // 🔍 调试：打印创建的数据
+        print("📊 [BloodPressureReading] 创建新数据:")
+        print("   • ID: \(id.uuidString.prefix(8))...")
+        print("   • 数值: \(systolic)/\(diastolic) mmHg, 心率 \(pulse)")
+        print("   • 时间: \(timestamp)")
+        print("   • 来源: \(source)")
     }
     
     // 血压分类

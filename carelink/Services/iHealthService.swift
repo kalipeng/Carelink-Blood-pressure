@@ -141,21 +141,44 @@ class iHealthService: NSObject {
     }
     
     // MARK: - 开始测量
+    // 两种模式：
+    // 1. App 主动触发测量（发送命令到设备）
+    // 2. 设备已经在测量，App 只接收数据（不发送命令）
     func startMeasurement(callback: @escaping (BloodPressureReading) -> Void) {
+        print("\n🩺 [iHealthService] ========== 开始测量 ==========")
+        
         guard isConnected else {
-            print("❌ 设备未连接")
+            print("❌ [iHealthService] 设备未连接，无法测量")
+            print("💡 [iHealthService] 提示：请先连接血压计")
             return
         }
         
         measurementCallback = callback
         
-        // 发送测量命令
-        // 注意：实际命令格式需要参考 iHealth SDK 文档
+        print("📱 [iHealthService] 设备已连接: \(peripheral?.name ?? "未知")")
+        print("📤 [iHealthService] 准备发送测量命令...")
+        
+        // 🎯 方案 1：发送命令让血压计自动开始测量
+        // 根据 iHealth KN-550BT 协议文档：
+        // 命令格式: 0xFD 0xFD 0xFA 0x05 0x11 0x00
         let command = Data([0xFD, 0xFD, 0xFA, 0x05, 0x11, 0x00])
         sendCommand(command)
         
+        print("✅ [iHealthService] 已发送测量命令")
+        print("⏳ [iHealthService] 等待血压计开始测量...")
+        print("💡 [iHealthService] 请确保已正确佩戴袖带")
+        print("🩺 [iHealthService] =====================================\n")
+        
         NotificationCenter.default.post(name: .measurementStarted, object: nil)
-        print("🩺 开始测量...")
+    }
+    
+    // MARK: - 被动接收测量数据
+    // 如果用户手动按了血压计的按钮，app 会自动接收数据
+    // 不需要调用 startMeasurement()
+    func listenForMeasurement(callback: @escaping (BloodPressureReading) -> Void) {
+        print("👂 [iHealthService] 开始监听血压计数据...")
+        print("💡 [iHealthService] 你可以直接按血压计上的按钮开始测量")
+        measurementCallback = callback
     }
     
     // MARK: - 发送命令
@@ -221,7 +244,8 @@ class iHealthService: NSObject {
         return BloodPressureReading(
             systolic: systolic,
             diastolic: diastolic,
-            pulse: pulse
+            pulse: pulse,
+            source: "bluetooth"  // 🔍 标记为真实蓝牙数据
         )
     }
 }

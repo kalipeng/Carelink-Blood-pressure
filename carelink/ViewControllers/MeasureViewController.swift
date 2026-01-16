@@ -287,15 +287,24 @@ class MeasureViewController: UIViewController {
             }
         }
         
-        // 备用：如果 3 秒没响应，使用模拟数据（用于测试）
+        // 备用：如果 30 秒没响应，使用模拟数据（用于测试）
         DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak self] in
             guard let self = self, self.isMeasuring else { return }
             
-            print("⚠️ [MeasureVC] 蓝牙超时，使用模拟数据")
+            print("\n⚠️ [MeasureVC] ========== 蓝牙超时警告 ==========")
+            print("⚠️ [MeasureVC] 30 秒内未收到血压计数据")
+            print("⚠️ [MeasureVC] 可能原因：")
+            print("   1. 血压计未开机或未配对")
+            print("   2. 蓝牙距离太远")
+            print("   3. 设备不支持远程测量")
+            print("🧪 [MeasureVC] 使用模拟数据进行演示")
+            print("⚠️ [MeasureVC] ========================================\n")
+            
             let reading = BloodPressureReading(
                 systolic: Int.random(in: 110...140),
                 diastolic: Int.random(in: 70...90),
-                pulse: Int.random(in: 60...100)
+                pulse: Int.random(in: 60...100),
+                source: "simulated"  // 🔍 明确标记为模拟数据
             )
             self.handleMeasurementComplete(reading)
         }

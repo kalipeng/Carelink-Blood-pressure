@@ -2,7 +2,7 @@
 //  ResultViewController.swift
 //  HealthPad
 //
-//  测量结果显示界面
+//  Measurement Result Display Screen
 //
 
 import UIKit
@@ -50,7 +50,7 @@ class ResultViewController: UIViewController {
         return label
     }()
     
-    // 🔍 数据来源标签
+    // 🔍 Data source label
     private let sourceLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 18, weight: .medium)
@@ -59,7 +59,7 @@ class ResultViewController: UIViewController {
         return label
     }()
     
-    // ⚠️ 模拟数据警告横幅
+    // ⚠️ Simulated data warning banner
     private let simulatedWarningBanner: UIView = {
         let view = UIView()
         view.backgroundColor = UIColor(red: 1.0, green: 0.95, blue: 0.7, alpha: 1.0)
@@ -80,7 +80,7 @@ class ResultViewController: UIViewController {
     
     private let warningTextLabel: UILabel = {
         let label = UILabel()
-        label.text = "这是模拟数据（测试用）\n请连接血压计获取真实数据"
+        label.text = "This is Simulated Data (For Testing)\nPlease connect blood pressure monitor for real data"
         label.font = .systemFont(ofSize: 18, weight: .medium)
         label.textColor = UIColor(red: 0.6, green: 0.3, blue: 0.0, alpha: 1.0)
         label.numberOfLines = 0
@@ -300,7 +300,7 @@ class ResultViewController: UIViewController {
             backButton.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 20),
             backButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 48),
             
-            // ⚠️ 警告横幅（模拟数据时显示）
+            // ⚠️ Warning banner (shown for simulated data)
             simulatedWarningBanner.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 20),
             simulatedWarningBanner.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: padding),
             simulatedWarningBanner.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -padding),
@@ -356,56 +356,56 @@ class ResultViewController: UIViewController {
     
     // MARK: - Display Result
     private func displayResult() {
-        // 🔍 完整的时间戳显示
+        // 🔍 Full timestamp display
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy  HH:mm:ss"
         let fullTimeString = formatter.string(from: reading.timestamp)
         
-        // 计算时间差
+        // Calculate time difference
         let timeAgo = getTimeAgoString(from: reading.timestamp)
         
         timeLabel.text = "\(fullTimeString)\n\(timeAgo)"
         
-        // 🔍 数据来源显示
+        // 🔍 Data source display
         let sourceEmoji: String
         let sourceText: String
         
         switch reading.source {
         case "bluetooth":
             sourceEmoji = "📱"
-            sourceText = "真实测量"
+            sourceText = "Real Measurement"
         case "simulated":
             sourceEmoji = "🧪"
-            sourceText = "模拟数据"
+            sourceText = "Simulated Data"
         case "manual":
             sourceEmoji = "✍️"
-            sourceText = "手动输入"
+            sourceText = "Manual Input"
         default:
             sourceEmoji = "❓"
-            sourceText = "未知来源"
+            sourceText = "Unknown Source"
         }
         
         sourceLabel.text = "\(sourceEmoji) \(sourceText)"
         
-        // ⚠️ 如果是模拟数据，显示警告横幅
+        // ⚠️ If simulated data, show warning banner
         if reading.source == "simulated" {
             simulatedWarningBanner.isHidden = false
-            print("\n⚠️⚠️⚠️ [ResultVC] 警告：这是模拟数据！ ⚠️⚠️⚠️")
+            print("\n⚠️⚠️⚠️ [ResultVC] WARNING: This is simulated data! ⚠️⚠️⚠️")
         } else {
             simulatedWarningBanner.isHidden = true
         }
         
-        // 🔍 打印调试信息
-        print("\n📊 [ResultVC] ========== 显示测量结果 ==========")
+        // 🔍 Print debug information
+        print("\n📊 [ResultVC] ========== Displaying Measurement Result ==========")
         print("   ID: \(reading.id.uuidString.prefix(8))...")
-        print("   数值: \(reading.systolic)/\(reading.diastolic) mmHg")
-        print("   心率: \(reading.pulse) bpm")
-        print("   时间: \(fullTimeString)")
-        print("   来源: \(reading.source) (\(sourceText))")
-        print("   分类: \(reading.category)")
+        print("   Values: \(reading.systolic)/\(reading.diastolic) mmHg")
+        print("   Pulse: \(reading.pulse) bpm")
+        print("   Time: \(fullTimeString)")
+        print("   Source: \(reading.source) (\(sourceText))")
+        print("   Category: \(reading.category)")
         
         if reading.source == "simulated" {
-            print("   ⚠️ 注意：这是模拟数据，不是真实测量！")
+            print("   ⚠️ Note: This is simulated data, not a real measurement!")
         }
         
         print("📊 [ResultVC] ========================================\n")
@@ -437,17 +437,17 @@ class ResultViewController: UIViewController {
     
     private func getCategoryTitle(_ category: String) -> String {
         switch category {
-        case "正常":
+        case "Normal", "正常":
             return "Within Normal Range"
-        case "正常偏高":
+        case "Slightly Elevated", "正常偏高":
             return "Slightly Elevated"
-        case "高血压前期":
+        case "Pre-Hypertension", "高血压前期":
             return "Pre-Hypertension"
-        case "高血压1期":
+        case "Hypertension Stage 1", "高血压1期":
             return "Hypertension Stage 1"
-        case "高血压2期":
+        case "Hypertension Stage 2", "高血压2期":
             return "Hypertension Stage 2"
-        case "高血压危象":
+        case "Hypertensive Crisis", "高血压危象":
             return "⚠️ Hypertensive Crisis"
         default:
             return category
@@ -456,7 +456,7 @@ class ResultViewController: UIViewController {
     
     private func getCategoryColors(_ category: String) -> (UIColor, UIColor, UIColor, UIColor) {
         switch category {
-        case "正常":
+        case "正常", "Normal":
             // Green - Normal
             return (
                 UIColor(red: 0.91, green: 0.96, blue: 0.91, alpha: 1.0), // background
@@ -464,7 +464,7 @@ class ResultViewController: UIViewController {
                 UIColor(red: 0.30, green: 0.69, blue: 0.31, alpha: 1.0), // icon
                 UIColor(red: 0.18, green: 0.49, blue: 0.20, alpha: 1.0)  // title
             )
-        case "正常偏高", "高血压前期":
+        case "正常偏高", "Slightly Elevated", "高血压前期", "Pre-Hypertension":
             // Orange - Warning
             return (
                 UIColor(red: 1.0, green: 0.95, blue: 0.88, alpha: 1.0),
@@ -500,18 +500,18 @@ class ResultViewController: UIViewController {
         let timeInterval = now.timeIntervalSince(date)
         
         if timeInterval < 0 {
-            return "刚刚" // 未来时间（时钟不同步）
+            return "Just now" // Future time (clock out of sync)
         } else if timeInterval < 60 {
-            return "刚刚 (< 1 分钟)"
+            return "Just now (< 1 minute)"
         } else if timeInterval < 3600 {
             let minutes = Int(timeInterval / 60)
-            return "\(minutes) 分钟前"
+            return "\(minutes) minute\(minutes == 1 ? "" : "s") ago"
         } else if timeInterval < 86400 {
             let hours = Int(timeInterval / 3600)
-            return "\(hours) 小时前"
+            return "\(hours) hour\(hours == 1 ? "" : "s") ago"
         } else {
             let days = Int(timeInterval / 86400)
-            return "\(days) 天前"
+            return "\(days) day\(days == 1 ? "" : "s") ago"
         }
     }
 }

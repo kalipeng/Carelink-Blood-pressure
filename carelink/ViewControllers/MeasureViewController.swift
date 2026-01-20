@@ -2,7 +2,7 @@
 //  MeasureViewController.swift
 //  HealthPad
 //
-//  测量界面 - 核心功能页面
+//  Measurement Screen - Core Functionality Page
 //
 
 import UIKit
@@ -278,33 +278,33 @@ class MeasureViewController: UIViewController {
         // Voice guidance
         VoiceService.shared.speakMeasurementStart()
         
-        // 📊 真实蓝牙测量
-        print("🩺 [MeasureVC] 开始测量，调用 iHealthService...")
+        // 📊 Real Bluetooth measurement
+        print("🩺 [MeasureVC] Starting measurement, calling iHealthService...")
         iHealthService.shared.startMeasurement { [weak self] reading in
-            print("📥 [MeasureVC] 收到测量结果: \(reading.systolic)/\(reading.diastolic) mmHg")
+            print("📥 [MeasureVC] Received measurement result: \(reading.systolic)/\(reading.diastolic) mmHg")
             DispatchQueue.main.async {
                 self?.handleMeasurementComplete(reading)
             }
         }
         
-        // 备用：如果 30 秒没响应，使用模拟数据（用于测试）
+        // Fallback: If no response in 30 seconds, use simulated data (for testing)
         DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak self] in
             guard let self = self, self.isMeasuring else { return }
             
-            print("\n⚠️ [MeasureVC] ========== 蓝牙超时警告 ==========")
-            print("⚠️ [MeasureVC] 30 秒内未收到血压计数据")
-            print("⚠️ [MeasureVC] 可能原因：")
-            print("   1. 血压计未开机或未配对")
-            print("   2. 蓝牙距离太远")
-            print("   3. 设备不支持远程测量")
-            print("🧪 [MeasureVC] 使用模拟数据进行演示")
+            print("\n⚠️ [MeasureVC] ========== Bluetooth Timeout Warning ==========")
+            print("⚠️ [MeasureVC] No data received from blood pressure monitor within 30 seconds")
+            print("⚠️ [MeasureVC] Possible reasons:")
+            print("   1. Blood pressure monitor not powered on or not paired")
+            print("   2. Bluetooth distance too far")
+            print("   3. Device doesn't support remote measurement")
+            print("🧪 [MeasureVC] Using simulated data for demonstration")
             print("⚠️ [MeasureVC] ========================================\n")
             
             let reading = BloodPressureReading(
                 systolic: Int.random(in: 110...140),
                 diastolic: Int.random(in: 70...90),
                 pulse: Int.random(in: 60...100),
-                source: "simulated"  // 🔍 明确标记为模拟数据
+                source: "simulated"  // 🔍 Explicitly marked as simulated data
             )
             self.handleMeasurementComplete(reading)
         }
@@ -314,21 +314,21 @@ class MeasureViewController: UIViewController {
         isMeasuring = false
         currentReading = reading
         
-        print("✅ [MeasureVC] 测量完成: \(reading.systolic)/\(reading.diastolic) mmHg, 心率: \(reading.pulse)")
+        print("✅ [MeasureVC] Measurement complete: \(reading.systolic)/\(reading.diastolic) mmHg, Pulse: \(reading.pulse)")
         
         // Stop loading
         activityIndicator.stopAnimating()
         startButton.setTitle("Start Measurement", for: .normal)
         startButton.isEnabled = true
         
-        // 💾 保存数据
-        print("💾 [MeasureVC] 开始保存数据到 UserDefaults...")
+        // 💾 Save data
+        print("💾 [MeasureVC] Starting to save data to UserDefaults...")
         BloodPressureReading.add(reading)
         
-        // 🔍 验证保存
+        // 🔍 Verify save
         let savedReadings = BloodPressureReading.load()
-        print("✅ [MeasureVC] 保存成功！当前共有 \(savedReadings.count) 条记录")
-        print("📝 [MeasureVC] 最新记录: \(savedReadings.first?.formattedValue ?? "无")")
+        print("✅ [MeasureVC] Save successful! Total \(savedReadings.count) records")
+        print("📝 [MeasureVC] Latest record: \(savedReadings.first?.formattedValue ?? "None")")
         
         // Voice announcement
         // VoiceService.shared.speakMeasurementResult(reading)
@@ -398,7 +398,7 @@ struct MeasureViewControllerRepresentable: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: MeasureViewController, context: Context) {
-        // 更新视图控制器（如果需要）
+        // Update view controller (if needed)
     }
 }
 #endif

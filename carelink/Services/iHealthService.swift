@@ -52,6 +52,11 @@ class iHealthService: NSObject {
     private(set) var isScanning = false
     private(set) var batteryLevel: Int = 100
     
+    // MARK: - 公开属性
+    var connectedDeviceName: String? {
+        return peripheral?.name
+    }
+    
     // MARK: - 回调
     private var measurementCallback: ((BloodPressureReading) -> Void)?
     private var connectionCallback: ((Bool, String?) -> Void)?
@@ -65,21 +70,21 @@ class iHealthService: NSObject {
     
     // MARK: - 初始化
     func initialize(completion: @escaping (Bool) -> Void) {
-        print("📱 初始化 iHealth 服务...")
+        print("📱 Initializing iHealth service...")
         
-        // 注意：实际部署时需要使用 iHealth Native SDK
-        // 这里使用 CoreBluetooth 作为演示
+        // Note: For actual deployment, use iHealth Native SDK
+        // Using CoreBluetooth for demonstration
         centralManager = CBCentralManager(delegate: self, queue: nil)
         
-        // 等待蓝牙准备就绪
+        // Wait for Bluetooth to be ready
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if self.centralManager?.state == .poweredOn {
                 self.isInitialized = true
                 completion(true)
-                print("✅ iHealth 服务初始化成功")
+                print("✅ iHealth service initialized successfully")
             } else {
                 completion(false)
-                print("❌ 蓝牙未准备就绪")
+                print("❌ Bluetooth not ready")
             }
         }
     }
@@ -87,16 +92,16 @@ class iHealthService: NSObject {
     // MARK: - 扫描设备
     func scanDevices(timeout: TimeInterval = 10.0, completion: @escaping (Bool, String?) -> Void) {
         guard isInitialized else {
-            completion(false, "服务未初始化")
+            completion(false, "Service not initialized")
             return
         }
         
         guard centralManager?.state == .poweredOn else {
-            completion(false, "请开启蓝牙")
+            completion(false, "Please turn on Bluetooth")
             return
         }
         
-        print("🔍 开始扫描 iHealth 设备...")
+        print("🔍 Starting scan for iHealth devices...")
         isScanning = true
         connectionCallback = completion
         
@@ -106,12 +111,12 @@ class iHealthService: NSObject {
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
         )
         
-        // 超时停止
+        // Timeout stop
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
             if self.isScanning {
                 self.stopScanning()
                 if !self.isConnected {
-                    completion(false, "未找到设备，请确保血压计已开启")
+                    completion(false, "Device not found, please ensure blood pressure monitor is powered on")
                 }
             }
         }
@@ -120,132 +125,132 @@ class iHealthService: NSObject {
     private func stopScanning() {
         centralManager?.stopScan()
         isScanning = false
-        print("⏸️ 停止扫描")
+        print("⏸️ Stopping scan")
     }
     
-    // MARK: - 连接设备
+    // MARK: - Connect Device
     func connect(to peripheral: CBPeripheral, completion: @escaping (Bool, String?) -> Void) {
         connectionCallback = completion
         self.peripheral = peripheral
         peripheral.delegate = self
         
-        print("📡 连接设备: \(peripheral.name ?? "未知")")
+        print("📡 Connecting device: \(peripheral.name ?? "Unknown")")
         centralManager?.connect(peripheral, options: nil)
     }
     
-    // MARK: - 断开连接
+    // MARK: - Disconnect
     func disconnect() {
         guard let peripheral = peripheral else { return }
         centralManager?.cancelPeripheralConnection(peripheral)
-        print("🔌 断开连接")
+        print("🔌 Disconnecting")
     }
     
-    // MARK: - 开始测量
-    // 两种模式：
-    // 1. App 主动触发测量（发送命令到设备）
-    // 2. 设备已经在测量，App 只接收数据（不发送命令）
+    // MARK: - Start Measurement
+    // Two modes:
+    // 1. App actively triggers measurement (sends command to device)
+    // 2. Device is already measuring, App only receives data (doesn't send command)
     func startMeasurement(callback: @escaping (BloodPressureReading) -> Void) {
-        print("\n🩺 [iHealthService] ========== 开始测量 ==========")
+        print("\n🩺 [iHealthService] ========== Starting Measurement ==========")
         
         guard isConnected else {
-            print("❌ [iHealthService] 设备未连接，无法测量")
-            print("💡 [iHealthService] 提示：请先连接血压计")
+            print("❌ [iHealthService] Device not connected, cannot measure")
+            print("💡 [iHealthService] Tip: Please connect blood pressure monitor first")
             return
         }
         
         measurementCallback = callback
         
-        print("📱 [iHealthService] 设备已连接: \(peripheral?.name ?? "未知")")
-        print("📤 [iHealthService] 准备发送测量命令...")
+        print("📱 [iHealthService] Device connected: \(peripheral?.name ?? "Unknown")")
+        print("📤 [iHealthService] Preparing to send measurement command...")
         
-        // 🎯 方案 1：发送命令让血压计自动开始测量
-        // 根据 iHealth KN-550BT 协议文档：
-        // 命令格式: 0xFD 0xFD 0xFA 0x05 0x11 0x00
+        // 🎯 Option 1: Send command to let blood pressure monitor auto-start measurement
+        // According to iHealth KN-550BT protocol document:
+        // Command format: 0xFD 0xFD 0xFA 0x05 0x11 0x00
         let command = Data([0xFD, 0xFD, 0xFA, 0x05, 0x11, 0x00])
         sendCommand(command)
         
-        print("✅ [iHealthService] 已发送测量命令")
-        print("⏳ [iHealthService] 等待血压计开始测量...")
-        print("💡 [iHealthService] 请确保已正确佩戴袖带")
+        print("✅ [iHealthService] Measurement command sent")
+        print("⏳ [iHealthService] Waiting for blood pressure monitor to start measuring...")
+        print("💡 [iHealthService] Please ensure cuff is correctly worn")
         print("🩺 [iHealthService] =====================================\n")
         
         NotificationCenter.default.post(name: .measurementStarted, object: nil)
     }
     
-    // MARK: - 被动接收测量数据
-    // 如果用户手动按了血压计的按钮，app 会自动接收数据
-    // 不需要调用 startMeasurement()
+    // MARK: - Passive Measurement Data Reception
+    // If user manually presses blood pressure monitor button, app will auto-receive data
+    // No need to call startMeasurement()
     func listenForMeasurement(callback: @escaping (BloodPressureReading) -> Void) {
-        print("👂 [iHealthService] 开始监听血压计数据...")
-        print("💡 [iHealthService] 你可以直接按血压计上的按钮开始测量")
+        print("👂 [iHealthService] Starting to listen for blood pressure monitor data...")
+        print("💡 [iHealthService] You can press button on blood pressure monitor directly to start measurement")
         measurementCallback = callback
     }
     
-    // MARK: - 发送命令
+    // MARK: - Send Command
     private func sendCommand(_ data: Data) {
         guard let characteristic = writeCharacteristic else {
-            print("❌ 写入特性未找到")
+            print("❌ Write characteristic not found")
             return
         }
         
         peripheral?.writeValue(data, for: characteristic, type: .withoutResponse)
-        print("📤 发送命令: \(data.hexString)")
+        print("📤 Sending command: \(data.hexString)")
     }
     
-    // MARK: - 解析数据
-    // MARK: - 数据解析（根据 iHealth KN-550BT 协议文档）
+    // MARK: - Parse Data
+    // MARK: - Data Parsing (According to iHealth KN-550BT Protocol Document)
     private func parseBloodPressureData(_ data: Data) -> BloodPressureReading? {
-        print("📥 收到数据 (\(data.count) 字节): \(data.hexString)")
+        print("📥 Received data (\(data.count) bytes): \(data.hexString)")
         
-        // 根据协议文档，最小数据包长度为 6 字节
+        // According to protocol document, minimum data packet length is 6 bytes
         guard data.count >= 6 else {
-            print("⚠️ 数据包太短 (< 6 字节)")
+            print("⚠️ Data packet too short (< 6 bytes)")
             return nil
         }
         
-        // 检查数据包标识符 (Byte 0)
-        // 必须是 0xFD 或 0xFE
+        // Check data packet identifier (Byte 0)
+        // Must be 0xFD or 0xFE
         guard data[0] == 0xFD || data[0] == 0xFE else {
-            print("⚠️ 无效的数据包标识符: 0x\(String(format: "%02X", data[0]))")
+            print("⚠️ Invalid data packet identifier: 0x\(String(format: "%02X", data[0]))")
             return nil
         }
         
-        // 解析数据（小端格式 Little Endian）
-        // Byte 1-2: 收缩压 (Systolic) - LSB first
+        // Parse data (Little Endian format)
+        // Byte 1-2: Systolic - LSB first
         let systolic = Int(data[1]) | (Int(data[2]) << 8)
         
-        // Byte 3-4: 舒张压 (Diastolic) - LSB first
+        // Byte 3-4: Diastolic - LSB first
         let diastolic = Int(data[3]) | (Int(data[4]) << 8)
         
-        // Byte 5: 心率 (Pulse) - 单字节
+        // Byte 5: Pulse - single byte
         let pulse = Int(data[5])
         
-        // 数据合理性检查（根据协议文档的范围）
-        // 收缩压: 50-250 mmHg
-        // 舒张压: 30-150 mmHg
-        // 心率: 40-200 bpm
+        // Data validity check (according to protocol document ranges)
+        // Systolic: 50-250 mmHg
+        // Diastolic: 30-150 mmHg
+        // Pulse: 40-200 bpm
         guard (50...250).contains(systolic) else {
-            print("⚠️ 收缩压超出范围: \(systolic) mmHg (应在 50-250)")
+            print("⚠️ Systolic out of range: \(systolic) mmHg (should be 50-250)")
             return nil
         }
         
         guard (30...150).contains(diastolic) else {
-            print("⚠️ 舒张压超出范围: \(diastolic) mmHg (应在 30-150)")
+            print("⚠️ Diastolic out of range: \(diastolic) mmHg (should be 30-150)")
             return nil
         }
         
         guard (40...200).contains(pulse) else {
-            print("⚠️ 心率超出范围: \(pulse) bpm (应在 40-200)")
+            print("⚠️ Pulse out of range: \(pulse) bpm (should be 40-200)")
             return nil
         }
         
-        print("✅ 数据解析成功: \(systolic)/\(diastolic) mmHg, 心率 \(pulse) bpm")
+        print("✅ Data parsed successfully: \(systolic)/\(diastolic) mmHg, Pulse \(pulse) bpm")
         
         return BloodPressureReading(
             systolic: systolic,
             diastolic: diastolic,
             pulse: pulse,
-            source: "bluetooth"  // 🔍 标记为真实蓝牙数据
+            source: "bluetooth"  // 🔍 Marked as real Bluetooth data
         )
     }
 }
@@ -256,17 +261,17 @@ extension iHealthService: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            print("✅ 蓝牙已开启")
+            print("✅ Bluetooth is on")
         case .poweredOff:
-            print("❌ 蓝牙已关闭")
+            print("❌ Bluetooth is off")
         case .unsupported:
-            print("❌ 设备不支持蓝牙")
+            print("❌ Device doesn't support Bluetooth")
         case .unauthorized:
-            print("❌ 蓝牙权限未授权")
+            print("❌ Bluetooth permission not authorized")
         case .resetting:
-            print("⏳ 蓝牙重置中")
+            print("⏳ Bluetooth resetting")
         case .unknown:
-            print("❓ 蓝牙状态未知")
+            print("❓ Bluetooth state unknown")
         @unknown default:
             break
         }
@@ -274,32 +279,32 @@ extension iHealthService: CBCentralManagerDelegate {
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         
-        let name = peripheral.name ?? "未知设备"
+        let name = peripheral.name ?? "Unknown Device"
         let rssiValue = RSSI.intValue
         
-        print("🔍 发现设备: \(name)")
+        print("🔍 Device discovered: \(name)")
         print("   • MAC: \(peripheral.identifier.uuidString)")
         print("   • RSSI: \(rssiValue) dBm")
         
-        // 检查是否是 iHealth KN-550BT 设备
-        // 设备名称可能是 "KN-550BT" 或包含 "iHealth" 或 "KN-550"
+        // Check if it's an iHealth KN-550BT device
+        // Device name may be "KN-550BT" or contain "iHealth" or "KN-550"
         let isIHealthDevice = name.contains("KN-550BT") ||
                               name.contains("iHealth") ||
                               name.contains("KN-550")
         
         if !isIHealthDevice {
-            print("   ⏭️ 不是 iHealth 设备，跳过")
+            print("   ⏭️ Not an iHealth device, skipping")
             return
         }
         
-        // 检查信号强度（避免连接信号太弱的设备）
+        // Check signal strength (avoid connecting to devices with weak signal)
         if rssiValue < -80 {
-            print("   ⚠️ 信号太弱 (\(rssiValue) dBm)，建议靠近设备")
+            print("   ⚠️ Signal too weak (\(rssiValue) dBm), please move closer to device")
         }
         
-        // 自动连接找到的 iHealth 设备
+        // Auto-connect to found iHealth device
         if !isConnected && self.peripheral == nil {
-            print("   ✨ 找到 iHealth KN-550BT，准备连接...")
+            print("   ✨ Found iHealth KN-550BT, preparing to connect...")
             stopScanning()
             connect(to: peripheral) { success, message in
                 self.connectionCallback?(success, message)
@@ -308,16 +313,16 @@ extension iHealthService: CBCentralManagerDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        print("✅ 设备已连接: \(peripheral.name ?? "未知")")
+        print("✅ Device connected: \(peripheral.name ?? "Unknown")")
         
-        // 发现服务（包括 iHealth 主服务和电池服务）
+        // Discover services (including iHealth main service and battery service)
         peripheral.discoverServices([serviceUUID, batteryServiceUUID])
         
         NotificationCenter.default.post(name: .deviceConnected, object: peripheral)
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        print("❌ 设备已断开")
+        print("❌ Device disconnected")
         isConnected = false
         self.peripheral = nil
         notifyCharacteristic = nil
@@ -326,13 +331,13 @@ extension iHealthService: CBCentralManagerDelegate {
         NotificationCenter.default.post(name: .deviceDisconnected, object: nil)
         
         if let error = error {
-            print("断开原因: \(error.localizedDescription)")
+            print("Disconnect reason: \(error.localizedDescription)")
         }
     }
     
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        print("❌ 连接失败")
-        connectionCallback?(false, error?.localizedDescription ?? "连接失败")
+        print("❌ Connection failed")
+        connectionCallback?(false, error?.localizedDescription ?? "Connection failed")
     }
 }
 
@@ -341,27 +346,27 @@ extension iHealthService: CBPeripheralDelegate {
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         if let error = error {
-            print("❌ 发现服务失败: \(error)")
-            connectionCallback?(false, "发现服务失败")
+            print("❌ Service discovery failed: \(error)")
+            connectionCallback?(false, "Service discovery failed")
             return
         }
         
         guard let services = peripheral.services else { return }
         
-        print("🔍 找到 \(services.count) 个服务")
+        print("🔍 Found \(services.count) service(s)")
         
         for service in services {
-            print("   • 服务: \(service.uuid)")
+            print("   • Service: \(service.uuid)")
             
-            // iHealth 主服务
+            // iHealth main service
             if service.uuid == serviceUUID {
-                print("   ✅ iHealth 主服务")
+                print("   ✅ iHealth main service")
                 peripheral.discoverCharacteristics([notifyCharUUID, writeCharUUID], for: service)
             }
             
-            // 电池服务
+            // Battery service
             else if service.uuid == batteryServiceUUID {
-                print("   🔋 电池服务")
+                print("   🔋 Battery service")
                 peripheral.discoverCharacteristics([batteryLevelCharUUID], for: service)
             }
         }
@@ -369,124 +374,124 @@ extension iHealthService: CBPeripheralDelegate {
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         if let error = error {
-            print("❌ 发现特性失败: \(error)")
+            print("❌ Characteristic discovery failed: \(error)")
             return
         }
         
         guard let characteristics = service.characteristics else { return }
         
         for characteristic in characteristics {
-            print("🔍 发现特性: \(characteristic.uuid)")
+            print("🔍 Discovered characteristic: \(characteristic.uuid)")
             
-            // iHealth 主服务的特性
+            // iHealth main service characteristics
             if characteristic.uuid == notifyCharUUID {
                 notifyCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
-                print("✅ 订阅数据通知特性 (NOTIFY)")
+                print("✅ Subscribed to data notification characteristic (NOTIFY)")
             }
             
             if characteristic.uuid == writeCharUUID {
                 writeCharacteristic = characteristic
-                print("✅ 找到命令写入特性 (WRITE)")
+                print("✅ Found command write characteristic (WRITE)")
             }
             
-            // 电池服务特性
+            // Battery service characteristic
             if characteristic.uuid == batteryLevelCharUUID {
                 batteryCharacteristic = characteristic
-                // 读取电池电量
+                // Read battery level
                 peripheral.readValue(for: characteristic)
-                // 订阅电池电量变化通知（如果支持）
+                // Subscribe to battery level change notifications (if supported)
                 if characteristic.properties.contains(.notify) {
                     peripheral.setNotifyValue(true, for: characteristic)
                 }
-                print("✅ 找到电池电量特性")
+                print("✅ Found battery level characteristic")
             }
         }
         
-        // iHealth 主服务连接完成
+        // iHealth main service connection complete
         if service.uuid == serviceUUID &&
            notifyCharacteristic != nil &&
            writeCharacteristic != nil {
             isConnected = true
-            print("🎉 iHealth KN-550BT 设备已就绪")
-            connectionCallback?(true, "设备已就绪")
+            print("🎉 iHealth KN-550BT device ready")
+            connectionCallback?(true, "Device ready")
             
-            // 发送连接成功通知
+            // Send connection success notification
             NotificationCenter.default.post(name: .deviceConnected, object: nil)
         }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let error = error {
-            print("❌ 读取数据失败: \(error)")
+            print("❌ Data read failed: \(error)")
             return
         }
         
         guard let data = characteristic.value else { return }
         
-        // 根据特性 UUID 处理不同类型的数据
+        // Handle different types of data based on characteristic UUID
         switch characteristic.uuid {
         case notifyCharUUID:
-            // iHealth 血压数据
+            // iHealth blood pressure data
             handleBloodPressureData(data)
             
         case batteryLevelCharUUID:
-            // 电池电量数据
+            // Battery level data
             handleBatteryData(data)
             
         default:
-            print("📦 未知特性数据: \(characteristic.uuid)")
+            print("📦 Unknown characteristic data: \(characteristic.uuid)")
         }
     }
     
-    // MARK: - 处理血压数据
+    // MARK: - Handle Blood Pressure Data
     private func handleBloodPressureData(_ data: Data) {
         if let reading = parseBloodPressureData(data) {
-            print("🩺 测量完成: \(reading.systolic)/\(reading.diastolic) mmHg, 心率: \(reading.pulse) bpm")
+            print("🩺 Measurement complete: \(reading.systolic)/\(reading.diastolic) mmHg, Pulse: \(reading.pulse) bpm")
             
-            // 保存到本地
+            // Save locally
             BloodPressureReading.add(reading)
             
-            // 回调
+            // Callback
             measurementCallback?(reading)
             
-            // 发送通知
+            // Send notification
             NotificationCenter.default.post(
                 name: .measurementCompleted,
                 object: reading
             )
             
-            // 语音播报 (暂时不需要)
+            // Voice announcement (not needed for now)
             // VoiceService.shared.speakMeasurement(reading)
         }
     }
     
-    // MARK: - 处理电池数据
+    // MARK: - Handle Battery Data
     private func handleBatteryData(_ data: Data) {
         guard data.count > 0 else { return }
         
         let level = Int(data[0])
         batteryLevel = level
         
-        print("🔋 电池电量: \(level)%")
+        print("🔋 Battery level: \(level)%")
         
-        // 发送电池电量更新通知
+        // Send battery level update notification
         NotificationCenter.default.post(
             name: .batteryLevelUpdated,
             object: level
         )
         
-        // 如果电量过低，发出警告
+        // Warn if battery is low
         if level < 20 {
-            print("⚠️ 电池电量低，请充电")
+            print("⚠️ Low battery, please charge")
         }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if let error = error {
-            print("❌ 写入失败: \(error)")
+            print("❌ Write failed: \(error)")
         } else {
-            print("✅ 命令发送成功")
+            print("✅ Command sent successfully")
         }
     }
 }

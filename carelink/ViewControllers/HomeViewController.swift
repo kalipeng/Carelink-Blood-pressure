@@ -2,7 +2,7 @@
 //  HomeViewController.swift
 //  HealthPad
 //
-//  主页 - Health Pad 主屏幕
+//  Home - Health Pad Main Screen
 //
 
 import UIKit
@@ -28,7 +28,7 @@ class HomeViewController: UIViewController {
         return label
     }()
     
-    // MARK: - 🔵 超明显的蓝牙连接状态面板
+    // MARK: - 🔵 Prominent Bluetooth Connection Status Panel
     
     private let bluetoothStatusPanel: UIView = {
         let view = UIView()
@@ -51,7 +51,7 @@ class HomeViewController: UIViewController {
         let label = UILabel()
         label.font = .systemFont(ofSize: 28, weight: .bold)
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        label.text = "未连接"
+        label.text = "Not Connected"
         label.textAlignment = .center
         return label
     }()
@@ -60,7 +60,7 @@ class HomeViewController: UIViewController {
         let label = UILabel()
         label.font = .systemFont(ofSize: 18)
         label.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
-        label.text = "等待扫描设备..."
+        label.text = "Waiting to scan device..."
         label.textAlignment = .center
         label.numberOfLines = 2
         return label
@@ -113,7 +113,7 @@ class HomeViewController: UIViewController {
         return label
     }()
     
-    // 连接时间追踪
+    // Connection time tracking
     private var connectionStartTime: Date?
     private var connectionTimeTimer: Timer?
     
@@ -208,15 +208,15 @@ class HomeViewController: UIViewController {
         updateDateTime()
         updateDeviceStatus()
         
-        // 🧪 调试：打印当前保存的数据
+        // 🧪 Debug: Print currently saved data
         #if DEBUG
-        print("\n🏠 [HomeVC] ========== App 启动 ==========")
+        print("\n🏠 [HomeVC] ========== App Launch ==========")
         DebugHelper.printSavedData()
         
-        // 🎯 取消注释下面这行可以自动添加测试数据
+        // 🎯 Uncomment the line below to automatically add test data
         // DebugHelper.addTestData()
         
-        // 添加一个隐藏的测试手势（三指双击标题添加测试数据）
+        // Add a hidden test gesture (three-finger double tap on title to add test data)
         let testGesture = UITapGestureRecognizer(target: self, action: #selector(handleDebugTap))
         testGesture.numberOfTapsRequired = 2
         testGesture.numberOfTouchesRequired = 3
@@ -224,34 +224,34 @@ class HomeViewController: UIViewController {
         titleLabel.isUserInteractionEnabled = true
         #endif
         
-        // 🔍 添加蓝牙检查手势（双击设备状态区域）
+        // 🔍 Add Bluetooth check gesture (double tap device status area)
         let connectionCheckGesture = UITapGestureRecognizer(target: self, action: #selector(checkBluetoothConnection))
         connectionCheckGesture.numberOfTapsRequired = 2
         deviceStatusView.addGestureRecognizer(connectionCheckGesture)
         deviceStatusView.isUserInteractionEnabled = true
         
-        // 🔧 强制连接手势（三次点击设备状态区域）
+        // 🔧 Force connect gesture (triple tap device status area)
         let forceConnectGesture = UITapGestureRecognizer(target: self, action: #selector(forceConnect))
         forceConnectGesture.numberOfTapsRequired = 3
         deviceStatusView.addGestureRecognizer(forceConnectGesture)
         
-        // 🔌 启动时自动强制连接（如果未连接）
+        // 🔌 Auto force connect on launch (if not connected)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             if !iHealthService.shared.isConnected {
-                print("\n⚡ [HomeVC] 检测到未连接，启动自动连接流程...")
+                print("\n⚡ [HomeVC] Not connected detected, starting auto-connect workflow...")
                 BluetoothConnectionHelper.fullConnectionWorkflow()
             } else {
-                print("\n✅ [HomeVC] 设备已连接")
+                print("\n✅ [HomeVC] Device already connected")
             }
         }
     }
     
     #if DEBUG
     @objc private func handleDebugTap() {
-        print("🧪 [HomeVC] 调试手势触发：添加测试数据")
+        print("🧪 [HomeVC] Debug gesture triggered: Adding test data")
         DebugHelper.addTestData()
         
-        // 震动反馈
+        // Haptic feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }
@@ -262,7 +262,7 @@ class HomeViewController: UIViewController {
         updateDateTime()
         updateDeviceStatus()
         
-        // 🔄 每次显示时重新加载数据统计
+        // 🔄 Reload data statistics each time it appears
         #if DEBUG
         DebugHelper.printSavedData()
         #endif
@@ -273,7 +273,7 @@ class HomeViewController: UIViewController {
         navigationController?.setNavigationBarHidden(true, animated: false)
         view.backgroundColor = UIColor(red: 0.96, green: 0.96, blue: 0.96, alpha: 1.0)
         
-        // 添加所有子视图
+        // Add all subviews
         view.addSubview(headerView)
         headerView.addSubview(titleLabel)
         headerView.addSubview(dateLabel)
@@ -282,7 +282,7 @@ class HomeViewController: UIViewController {
         deviceStatusView.addSubview(statusDot)
         deviceStatusView.addSubview(statusLabel)
         
-        // 🔵 添加超明显的蓝牙状态面板
+        // 🔵 Add prominent Bluetooth status panel
         view.addSubview(bluetoothStatusPanel)
         bluetoothStatusPanel.addSubview(pulseAnimationView)
         bluetoothStatusPanel.addSubview(statusIndicatorView)
@@ -310,13 +310,13 @@ class HomeViewController: UIViewController {
         setupBluetoothPanelGestures()
     }
     
-    // MARK: - 🔵 蓝牙面板手势
+    // MARK: - 🔵 Bluetooth Panel Gestures
     private func setupBluetoothPanelGestures() {
-        // 单击：显示详细状态
+        // Single tap: Show detailed status
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(showBluetoothDetails))
         bluetoothStatusPanel.addGestureRecognizer(tapGesture)
         
-        // 长按：强制连接
+        // Long press: Force connect
         let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(forceLongPressConnect))
         longPressGesture.minimumPressDuration = 1.0
         bluetoothStatusPanel.addGestureRecognizer(longPressGesture)
@@ -325,27 +325,27 @@ class HomeViewController: UIViewController {
     }
     
     @objc private func showBluetoothDetails() {
-        print("\n📊 [HomeVC] 显示蓝牙详细状态")
-        BluetoothConnectionHelper.printDetailedStatus()
+        print("\n📊 [HomeVC] Showing detailed Bluetooth status")
+        BluetoothConnectionHelper.showDetailedStatus()
         
-        // 震动反馈
+        // Haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
     }
     
     @objc private func forceLongPressConnect(_ gesture: UILongPressGestureRecognizer) {
         if gesture.state == .began {
-            print("\n🔧 [HomeVC] 长按触发强制连接")
+            print("\n🔧 [HomeVC] Long press triggered force connect")
             BluetoothConnectionHelper.forceConnectToDevice()
             
-            // 震动反馈
+            // Haptic feedback
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.warning)
         }
     }
     
     private func setupConstraints() {
-        // 禁用自动布局
+        // Disable autoresizing mask
         headerView.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -399,29 +399,29 @@ class HomeViewController: UIViewController {
             statusLabel.trailingAnchor.constraint(equalTo: deviceStatusView.trailingAnchor, constant: -24),
             statusLabel.centerYAnchor.constraint(equalTo: deviceStatusView.centerYAnchor),
             
-            // 🔵 蓝牙状态面板（放在 header 下方）
+            // 🔵 Bluetooth status panel (below header)
             bluetoothStatusPanel.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 30),
             bluetoothStatusPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             bluetoothStatusPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
             bluetoothStatusPanel.heightAnchor.constraint(equalToConstant: 200),
             
-            // 状态指示器（中心圆点）
+            // Status indicator (center dot)
             statusIndicatorView.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
             statusIndicatorView.topAnchor.constraint(equalTo: bluetoothStatusPanel.topAnchor, constant: 20),
             statusIndicatorView.widthAnchor.constraint(equalToConstant: 24),
             statusIndicatorView.heightAnchor.constraint(equalToConstant: 24),
             
-            // 脉冲动画
+            // Pulse animation
             pulseAnimationView.centerXAnchor.constraint(equalTo: statusIndicatorView.centerXAnchor),
             pulseAnimationView.centerYAnchor.constraint(equalTo: statusIndicatorView.centerYAnchor),
             pulseAnimationView.widthAnchor.constraint(equalToConstant: 30),
             pulseAnimationView.heightAnchor.constraint(equalToConstant: 30),
             
-            // 蓝牙图标
+            // Bluetooth icon
             bluetoothIconLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
             bluetoothIconLabel.topAnchor.constraint(equalTo: statusIndicatorView.bottomAnchor, constant: 10),
             
-            // 连接状态文字
+            // Connection status text
             connectionStatusLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
             connectionStatusLabel.topAnchor.constraint(equalTo: bluetoothIconLabel.bottomAnchor, constant: 5),
             connectionStatusLabel.leadingAnchor.constraint(equalTo: bluetoothStatusPanel.leadingAnchor, constant: 20),
@@ -433,13 +433,13 @@ class HomeViewController: UIViewController {
             deviceNameLabel.leadingAnchor.constraint(equalTo: bluetoothStatusPanel.leadingAnchor, constant: 20),
             deviceNameLabel.trailingAnchor.constraint(equalTo: bluetoothStatusPanel.trailingAnchor, constant: -20),
             
-            // 连接时间
+            // Connection time
             connectionTimeLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
             connectionTimeLabel.topAnchor.constraint(equalTo: deviceNameLabel.bottomAnchor, constant: 5),
             connectionTimeLabel.leadingAnchor.constraint(equalTo: bluetoothStatusPanel.leadingAnchor, constant: 20),
             connectionTimeLabel.trailingAnchor.constraint(equalTo: bluetoothStatusPanel.trailingAnchor, constant: -20),
             
-            // Buttons Container（调整位置，移到蓝牙面板下方）
+            // Buttons Container (adjusted position, moved below Bluetooth panel)
             buttonsContainer.topAnchor.constraint(equalTo: bluetoothStatusPanel.bottomAnchor, constant: 30),
             buttonsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding + 40),
             buttonsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -(padding + 40)),
@@ -525,13 +525,13 @@ class HomeViewController: UIViewController {
     }
     
     private func updateDeviceStatus() {
-        // 🔍 从 iHealthService 获取实际连接状态
+        // 🔍 Get actual connection status from iHealthService
         let isConnected = iHealthService.shared.isConnected
         let isScanning = iHealthService.shared.isScanning
         
-        print("🔌 [HomeVC] 更新设备状态: \(isConnected ? "已连接" : "未连接"), 扫描中: \(isScanning)")
+        print("🔌 [HomeVC] Update device status: \(isConnected ? "Connected" : "Not Connected"), Scanning: \(isScanning)")
         
-        // 更新旧的状态栏
+        // Update old status bar
         if isConnected {
             statusDot.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
             statusLabel.text = "Connected"
@@ -542,95 +542,95 @@ class HomeViewController: UIViewController {
             statusLabel.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         }
         
-        // 🔵 更新新的蓝牙状态面板
+        // 🔵 Update new Bluetooth status panel
         updateBluetoothPanel(isConnected: isConnected, isScanning: isScanning)
     }
     
-    // MARK: - 🔵 更新蓝牙状态面板
+    // MARK: - 🔵 Update Bluetooth Status Panel
     private func updateBluetoothPanel(isConnected: Bool, isScanning: Bool) {
         if isConnected {
-            // ✅ 已连接状态
-            connectionStatusLabel.text = "已连接"
+            // ✅ Connected status
+            connectionStatusLabel.text = "Connected"
             connectionStatusLabel.textColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
             bluetoothIconLabel.text = "✅"
             
-            // 绿色指示器
+            // Green indicator
             statusIndicatorView.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
             pulseAnimationView.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.3)
             
-            // 设备名称
-            if let deviceName = iHealthService.shared.connectedPeripheral?.name {
-                deviceNameLabel.text = "设备: \(deviceName)"
+            // Device name
+            if let deviceName = iHealthService.shared.connectedDeviceName {
+                deviceNameLabel.text = "Device: \(deviceName)"
                 deviceNameLabel.textColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
             } else {
                 deviceNameLabel.text = "iHealth KN-550BT"
                 deviceNameLabel.textColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
             }
             
-            // 面板样式
+            // Panel style
             bluetoothStatusPanel.backgroundColor = UIColor(red: 0.92, green: 0.99, blue: 0.95, alpha: 1.0)
             bluetoothStatusPanel.layer.borderColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.5).cgColor
             
-            // 开始脉冲动画
+            // Start pulse animation
             startPulseAnimation()
             
-            // 开始计时
+            // Start timer
             if connectionStartTime == nil {
                 connectionStartTime = Date()
             }
             startConnectionTimeUpdate()
             
         } else if isScanning {
-            // 🔍 扫描中状态
-            connectionStatusLabel.text = "扫描设备中..."
+            // 🔍 Scanning status
+            connectionStatusLabel.text = "Scanning for devices..."
             connectionStatusLabel.textColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 1.0)
             bluetoothIconLabel.text = "🔍"
             
-            // 蓝色指示器
+            // Blue indicator
             statusIndicatorView.backgroundColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 1.0)
             pulseAnimationView.backgroundColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 0.3)
             
-            deviceNameLabel.text = "正在寻找 iHealth KN-550BT\n请确保设备已开机并在范围内"
+            deviceNameLabel.text = "Looking for iHealth KN-550BT\nPlease ensure device is powered on and in range"
             deviceNameLabel.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
             
             connectionTimeLabel.text = ""
             
-            // 面板样式
+            // Panel style
             bluetoothStatusPanel.backgroundColor = UIColor(red: 0.92, green: 0.96, blue: 1.0, alpha: 1.0)
             bluetoothStatusPanel.layer.borderColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 0.5).cgColor
             
-            // 开始脉冲动画
+            // Start pulse animation
             startPulseAnimation()
             
         } else {
-            // ❌ 未连接状态
-            connectionStatusLabel.text = "未连接"
+            // ❌ Not connected status
+            connectionStatusLabel.text = "Not Connected"
             connectionStatusLabel.textColor = UIColor(red: 0.7, green: 0.7, blue: 0.7, alpha: 1.0)
             bluetoothIconLabel.text = "📡"
             
-            // 灰色指示器
+            // Gray indicator
             statusIndicatorView.backgroundColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 1.0)
             pulseAnimationView.backgroundColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 0.3)
             
-            deviceNameLabel.text = "点击此面板查看详情\n长按 1 秒强制连接"
+            deviceNameLabel.text = "Tap to view details\nLong press for 1 second to force connect"
             deviceNameLabel.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
             
             connectionTimeLabel.text = ""
             
-            // 面板样式
+            // Panel style
             bluetoothStatusPanel.backgroundColor = UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
             bluetoothStatusPanel.layer.borderColor = UIColor(red: 0.8, green: 0.8, blue: 0.82, alpha: 1.0).cgColor
             
-            // 停止动画
+            // Stop animation
             stopPulseAnimation()
             
-            // 重置计时
+            // Reset timer
             connectionStartTime = nil
             stopConnectionTimeUpdate()
         }
     }
     
-    // MARK: - 🎬 脉冲动画
+    // MARK: - 🎬 Pulse Animation
     private func startPulseAnimation() {
         pulseAnimationView.layer.removeAllAnimations()
         
@@ -648,7 +648,7 @@ class HomeViewController: UIViewController {
         }
     }
     
-    // MARK: - ⏱️ 连接时间更新
+    // MARK: - ⏱️ Connection Time Update
     private func startConnectionTimeUpdate() {
         stopConnectionTimeUpdate()
         connectionTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -673,9 +673,9 @@ class HomeViewController: UIViewController {
         let seconds = Int(elapsed) % 60
         
         if minutes > 0 {
-            connectionTimeLabel.text = "已连接: \(minutes) 分 \(seconds) 秒"
+            connectionTimeLabel.text = "Connected: \(minutes) min \(seconds) sec"
         } else {
-            connectionTimeLabel.text = "已连接: \(seconds) 秒"
+            connectionTimeLabel.text = "Connected: \(seconds) sec"
         }
         connectionTimeLabel.textColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
     }
@@ -683,14 +683,14 @@ class HomeViewController: UIViewController {
     // MARK: - Actions
     @objc private func measureTapped() {
         tabBarController?.selectedIndex = 1
-        // 添加触觉反馈
+        // Add haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
     
     @objc private func historyTapped() {
         tabBarController?.selectedIndex = 2
-        // 添加触觉反馈
+        // Add haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
@@ -711,57 +711,57 @@ class HomeViewController: UIViewController {
     }
     
     @objc private func measurementCompleted(_ notification: Notification) {
-        // 主页不需要显示详细结果，只更新设备状态
+        // Home doesn't need to show detailed results, just update device status
         updateDeviceStatus()
     }
     
     @objc private func deviceConnectionChanged() {
-        print("📡 [HomeVC] 收到设备连接状态变化通知")
+        print("📡 [HomeVC] Device connection status change notification received")
         updateDeviceStatus()
     }
     
-    // MARK: - 🔧 强制连接蓝牙设备
+    // MARK: - 🔧 Force Connect Bluetooth Device
     @objc private func forceConnect() {
-        print("\n🔧 [HomeVC] 用户触发强制连接")
+        print("\n🔧 [HomeVC] User triggered force connect")
         
-        // 震动反馈
+        // Haptic feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.warning)
         
-        // 执行完整连接流程
+        // Execute full connection workflow
         BluetoothConnectionHelper.fullConnectionWorkflow()
     }
     
-    // MARK: - 🔍 蓝牙连接检查工具
+    // MARK: - 🔍 Bluetooth Connection Checker
     @objc private func checkBluetoothConnection() {
-        print("\n🔍 [HomeVC] ========== 蓝牙连接检查 ==========")
+        print("\n🔍 [HomeVC] ========== Bluetooth Connection Check ==========")
         
         let service = iHealthService.shared
-        print("📊 [HomeVC] 服务状态:")
-        print("   • 已初始化: \(service.isInitialized)")
-        print("   • 已连接: \(service.isConnected)")
-        print("   • 正在扫描: \(service.isScanning)")
+        print("📊 [HomeVC] Service status:")
+        print("   • Initialized: \(service.isInitialized)")
+        print("   • Connected: \(service.isConnected)")
+        print("   • Scanning: \(service.isScanning)")
         
         if service.isConnected {
-            print("✅ [HomeVC] 蓝牙已连接，可以进行测量")
+            print("✅ [HomeVC] Bluetooth connected, ready to measure")
         } else if service.isInitialized {
-            print("⚠️ [HomeVC] 服务已初始化，但未连接设备")
-            print("💡 [HomeVC] 建议：启动蓝牙扫描")
+            print("⚠️ [HomeVC] Service initialized but no device connected")
+            print("💡 [HomeVC] Suggestion: Start Bluetooth scanning")
             
-            // 自动启动扫描
+            // Auto start scanning
             service.scanDevices { success, message in
-                print(success ? "✅ [HomeVC] 扫描启动成功" : "❌ [HomeVC] 扫描失败: \(message ?? "")")
+                print(success ? "✅ [HomeVC] Scan started successfully" : "❌ [HomeVC] Scan failed: \(message ?? "")")
             }
         } else {
-            print("❌ [HomeVC] 服务未初始化")
-            print("💡 [HomeVC] 建议：初始化 iHealthService")
+            print("❌ [HomeVC] Service not initialized")
+            print("💡 [HomeVC] Suggestion: Initialize iHealthService")
             
-            // 自动初始化
+            // Auto initialize
             service.initialize { success in
-                print(success ? "✅ [HomeVC] 初始化成功" : "❌ [HomeVC] 初始化失败")
+                print(success ? "✅ [HomeVC] Initialization successful" : "❌ [HomeVC] Initialization failed")
                 if success {
                     service.scanDevices { scanSuccess, message in
-                        print(scanSuccess ? "✅ [HomeVC] 扫描启动成功" : "❌ [HomeVC] 扫描失败: \(message ?? "")")
+                        print(scanSuccess ? "✅ [HomeVC] Scan started successfully" : "❌ [HomeVC] Scan failed: \(message ?? "")")
                     }
                 }
             }
@@ -769,7 +769,7 @@ class HomeViewController: UIViewController {
         
         print("🔍 [HomeVC] ========================================\n")
         
-        // 更新状态显示
+        // Update status display
         updateDeviceStatus()
     }
 }
@@ -791,7 +791,7 @@ struct HomeViewControllerRepresentable: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: HomeViewController, context: Context) {
-        // 更新视图控制器（如果需要）
+        // Update view controller (if needed)
     }
 }
 #endif

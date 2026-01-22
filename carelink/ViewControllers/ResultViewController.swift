@@ -25,26 +25,34 @@ class ResultViewController: UIViewController {
         var config = UIButton.Configuration.plain()
         config.title = "← Back to Home"
         config.baseForegroundColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24)
+        config.contentInsets = NSDirectionalEdgeInsets(
+            top: UIScreen.adaptiveSpacing(small: 8, regular: 12, large: 14),
+            leading: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28),
+            bottom: UIScreen.adaptiveSpacing(small: 8, regular: 12, large: 14),
+            trailing: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)
+        )
         config.background.backgroundColor = .white
         config.background.cornerRadius = 12
         
         let button = UIButton(configuration: config)
-        button.titleLabel?.font = .systemFont(ofSize: 24)
+        // 📱 Adaptive font size: 18pt (small) -> 24pt (regular) -> 26pt (large)
+        button.titleLabel?.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 18, regular: 24, large: 26))
         return button
     }()
     
     private let resultTitleLabel: UILabel = {
         let label = UILabel()
         label.text = "Your Latest Reading"
-        label.font = .systemFont(ofSize: 48, weight: .bold)
+        // 📱 Adaptive font size: 36pt (small) -> 48pt (regular) -> 56pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 36, regular: 48, large: 56), weight: .bold)
         label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         return label
     }()
     
     private let timeLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 24)
+        // 📱 Adaptive font size: 18pt (small) -> 24pt (regular) -> 26pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 18, regular: 24, large: 26))
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         label.numberOfLines = 0
         return label
@@ -53,7 +61,8 @@ class ResultViewController: UIViewController {
     // 🔍 Data source label
     private let sourceLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 18, weight: .medium)
+        // 📱 Adaptive font size: 15pt (small) -> 18pt (regular) -> 20pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 15, regular: 18, large: 20), weight: .medium)
         label.textColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0)
         label.textAlignment = .right
         return label
@@ -73,7 +82,8 @@ class ResultViewController: UIViewController {
     private let warningIconLabel: UILabel = {
         let label = UILabel()
         label.text = "⚠️"
-        label.font = .systemFont(ofSize: 32)
+        // 📱 Adaptive icon size: 26pt (small) -> 32pt (regular) -> 36pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 26, regular: 32, large: 36))
         label.textAlignment = .center
         return label
     }()
@@ -81,7 +91,8 @@ class ResultViewController: UIViewController {
     private let warningTextLabel: UILabel = {
         let label = UILabel()
         label.text = "This is Simulated Data (For Testing)\nPlease connect blood pressure monitor for real data"
-        label.font = .systemFont(ofSize: 18, weight: .medium)
+        // 📱 Adaptive font size: 15pt (small) -> 18pt (regular) -> 20pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 15, regular: 18, large: 20), weight: .medium)
         label.textColor = UIColor(red: 0.6, green: 0.3, blue: 0.0, alpha: 1.0)
         label.numberOfLines = 0
         label.textAlignment = .center
@@ -92,7 +103,8 @@ class ResultViewController: UIViewController {
         let stack = UIStackView()
         stack.axis = .horizontal
         stack.distribution = .fillEqually
-        stack.spacing = 24
+        // 📱 Adaptive spacing: 12pt (small) -> 24pt (regular) -> 28pt (large)
+        stack.spacing = UIScreen.adaptiveSpacing(small: 12, regular: 24, large: 28)
         return stack
     }()
     
@@ -111,7 +123,8 @@ class ResultViewController: UIViewController {
     private let statusIconLabel: UILabel = {
         let label = UILabel()
         label.text = "✓"
-        label.font = .systemFont(ofSize: 48, weight: .bold)
+        // 📱 Adaptive icon size: 36pt (small) -> 48pt (regular) -> 56pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 36, regular: 48, large: 56), weight: .bold)
         label.textColor = .white
         label.textAlignment = .center
         return label

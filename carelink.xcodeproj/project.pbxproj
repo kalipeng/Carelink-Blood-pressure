@@ -285,6 +285,7 @@
 				DEVELOPMENT_TEAM = PWPSA776NL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = carelink/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = carelink;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -312,6 +313,7 @@
 				DEVELOPMENT_TEAM = PWPSA776NL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = carelink/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = carelink;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

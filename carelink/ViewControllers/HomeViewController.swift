@@ -15,7 +15,8 @@ class HomeViewController: UIViewController {
     
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 42, weight: .bold)
+        // 📱 Adaptive font size: 32pt (small) -> 42pt (regular) -> 48pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 32, regular: 42, large: 48), weight: .bold)
         label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         label.text = "Health Pad"
         return label
@@ -23,7 +24,8 @@ class HomeViewController: UIViewController {
     
     private let dateLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 20)
+        // 📱 Adaptive font size: 16pt (small) -> 20pt (regular) -> 22pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 16, regular: 20, large: 22))
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         return label
     }()
@@ -42,14 +44,16 @@ class HomeViewController: UIViewController {
     private let bluetoothIconLabel: UILabel = {
         let label = UILabel()
         label.text = "📡"
-        label.font = .systemFont(ofSize: 60)
+        // 📱 Adaptive icon size: 48pt (small) -> 60pt (regular) -> 72pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 48, regular: 60, large: 72))
         label.textAlignment = .center
         return label
     }()
     
     private let connectionStatusLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 28, weight: .bold)
+        // 📱 Adaptive font size: 22pt (small) -> 28pt (regular) -> 32pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 22, regular: 28, large: 32), weight: .bold)
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         label.text = "Not Connected"
         label.textAlignment = .center
@@ -58,7 +62,8 @@ class HomeViewController: UIViewController {
     
     private let deviceNameLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 18)
+        // 📱 Adaptive font size: 15pt (small) -> 18pt (regular) -> 20pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 15, regular: 18, large: 20))
         label.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
         label.text = "Waiting to scan device..."
         label.textAlignment = .center
@@ -68,7 +73,8 @@ class HomeViewController: UIViewController {
     
     private let connectionTimeLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 16)
+        // 📱 Adaptive font size: 14pt (small) -> 16pt (regular) -> 18pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 14, regular: 16, large: 18))
         label.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
         label.text = ""
         label.textAlignment = .center
@@ -370,14 +376,19 @@ class HomeViewController: UIViewController {
         batteryLabel.translatesAutoresizingMaskIntoConstraints = false
         voiceButton.translatesAutoresizingMaskIntoConstraints = false
         
-        let padding: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 60 : 30
+        // 📱 Use adaptive padding based on screen size
+        let padding: CGFloat = UIScreen.adaptivePadding
+        let verticalSpacing: CGFloat = UIScreen.adaptiveVerticalSpacing
+        let headerHeight: CGFloat = UIScreen.adaptiveSpacing(small: 80, regular: 100, large: 120)
+        let panelHeight: CGFloat = UIScreen.adaptiveSpacing(small: 160, regular: 200, large: 240)
+        let buttonHeight: CGFloat = UIScreen.adaptiveSpacing(small: 200, regular: 250, large: 280)
         
         NSLayoutConstraint.activate([
             // Header
-            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: verticalSpacing),
             headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            headerView.heightAnchor.constraint(equalToConstant: 100),
+            headerView.heightAnchor.constraint(equalToConstant: headerHeight),
             
             titleLabel.topAnchor.constraint(equalTo: headerView.topAnchor),
             titleLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
@@ -400,10 +411,10 @@ class HomeViewController: UIViewController {
             statusLabel.centerYAnchor.constraint(equalTo: deviceStatusView.centerYAnchor),
             
             // 🔵 Bluetooth status panel (below header)
-            bluetoothStatusPanel.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 30),
+            bluetoothStatusPanel.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: verticalSpacing),
             bluetoothStatusPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             bluetoothStatusPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            bluetoothStatusPanel.heightAnchor.constraint(equalToConstant: 200),
+            bluetoothStatusPanel.heightAnchor.constraint(equalToConstant: panelHeight),
             
             // Status indicator (center dot)
             statusIndicatorView.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
@@ -440,22 +451,22 @@ class HomeViewController: UIViewController {
             connectionTimeLabel.trailingAnchor.constraint(equalTo: bluetoothStatusPanel.trailingAnchor, constant: -20),
             
             // Buttons Container (adjusted position, moved below Bluetooth panel)
-            buttonsContainer.topAnchor.constraint(equalTo: bluetoothStatusPanel.bottomAnchor, constant: 30),
-            buttonsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding + 40),
-            buttonsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -(padding + 40)),
-            buttonsContainer.bottomAnchor.constraint(equalTo: statusBar.topAnchor, constant: -40),
+            buttonsContainer.topAnchor.constraint(equalTo: bluetoothStatusPanel.bottomAnchor, constant: verticalSpacing),
+            buttonsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding + UIScreen.adaptiveSpacing(small: 20, regular: 40, large: 60)),
+            buttonsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -(padding + UIScreen.adaptiveSpacing(small: 20, regular: 40, large: 60))),
+            buttonsContainer.bottomAnchor.constraint(equalTo: statusBar.topAnchor, constant: -verticalSpacing),
             
             measureButton.topAnchor.constraint(equalTo: buttonsContainer.topAnchor),
             measureButton.leadingAnchor.constraint(equalTo: buttonsContainer.leadingAnchor),
-            measureButton.trailingAnchor.constraint(equalTo: buttonsContainer.centerXAnchor, constant: -20),
+            measureButton.trailingAnchor.constraint(equalTo: buttonsContainer.centerXAnchor, constant: -UIScreen.adaptiveSpacing(small: 10, regular: 20, large: 24)),
             measureButton.bottomAnchor.constraint(equalTo: buttonsContainer.bottomAnchor),
-            measureButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 250),
+            measureButton.heightAnchor.constraint(greaterThanOrEqualToConstant: buttonHeight),
             
             historyButton.topAnchor.constraint(equalTo: buttonsContainer.topAnchor),
-            historyButton.leadingAnchor.constraint(equalTo: buttonsContainer.centerXAnchor, constant: 20),
+            historyButton.leadingAnchor.constraint(equalTo: buttonsContainer.centerXAnchor, constant: UIScreen.adaptiveSpacing(small: 10, regular: 20, large: 24)),
             historyButton.trailingAnchor.constraint(equalTo: buttonsContainer.trailingAnchor),
             historyButton.bottomAnchor.constraint(equalTo: buttonsContainer.bottomAnchor),
-            historyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 250),
+            historyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: buttonHeight),
             
             // Measure Button Content
             measureIconLabel.centerXAnchor.constraint(equalTo: measureButton.centerXAnchor),
@@ -474,8 +485,8 @@ class HomeViewController: UIViewController {
             // Status Bar
             statusBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             statusBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            statusBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
-            statusBar.heightAnchor.constraint(equalToConstant: 80),
+            statusBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -verticalSpacing),
+            statusBar.heightAnchor.constraint(equalToConstant: UIScreen.adaptiveSpacing(small: 60, regular: 80, large: 90)),
             
             batteryLabel.leadingAnchor.constraint(equalTo: statusBar.leadingAnchor, constant: 32),
             batteryLabel.centerYAnchor.constraint(equalTo: statusBar.centerYAnchor),

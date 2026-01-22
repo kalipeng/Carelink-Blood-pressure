@@ -16,19 +16,26 @@ class HistoryViewController: UIViewController {
         var config = UIButton.Configuration.plain()
         config.title = "← Back"
         config.baseForegroundColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24)
+        config.contentInsets = NSDirectionalEdgeInsets(
+            top: UIScreen.adaptiveSpacing(small: 8, regular: 12, large: 14),
+            leading: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28),
+            bottom: UIScreen.adaptiveSpacing(small: 8, regular: 12, large: 14),
+            trailing: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)
+        )
         config.background.backgroundColor = .white
         config.background.cornerRadius = 12
         
         let button = UIButton(configuration: config)
-        button.titleLabel?.font = .systemFont(ofSize: 24)
+        // 📱 Adaptive font size: 18pt (small) -> 24pt (regular) -> 26pt (large)
+        button.titleLabel?.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 18, regular: 24, large: 26))
         return button
     }()
     
     private let headerLabel: UILabel = {
         let label = UILabel()
         label.text = "Measurement History"
-        label.font = .systemFont(ofSize: 36, weight: .bold)
+        // 📱 Adaptive font size: 28pt (small) -> 36pt (regular) -> 40pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 28, regular: 36, large: 40), weight: .bold)
         label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         return label
     }()
@@ -38,14 +45,16 @@ class HistoryViewController: UIViewController {
         table.backgroundColor = .clear
         table.separatorStyle = .none
         table.register(ModernHistoryCell.self, forCellReuseIdentifier: "ModernHistoryCell")
-        table.rowHeight = 140
+        // 📱 Adaptive row height: 110pt (small) -> 140pt (regular) -> 160pt (large)
+        table.rowHeight = UIScreen.adaptiveSpacing(small: 110, regular: 140, large: 160)
         return table
     }()
     
     private let emptyStateLabel: UILabel = {
         let label = UILabel()
         label.text = "No measurements yet\nStart your first measurement"
-        label.font = .systemFont(ofSize: 24)
+        // 📱 Adaptive font size: 18pt (small) -> 24pt (regular) -> 26pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 18, regular: 24, large: 26))
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         label.textAlignment = .center
         label.numberOfLines = 0
@@ -163,33 +172,38 @@ class ModernHistoryCell: UITableViewCell {
     
     private let valueLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 42, weight: .bold)
+        // 📱 Adaptive font size: 32pt (small) -> 42pt (regular) -> 48pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 32, regular: 42, large: 48), weight: .bold)
         return label
     }()
     
     private let dateLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 18)
+        // 📱 Adaptive font size: 15pt (small) -> 18pt (regular) -> 20pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 15, regular: 18, large: 20))
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         return label
     }()
     
     private let timeLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 18)
+        // 📱 Adaptive font size: 15pt (small) -> 18pt (regular) -> 20pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 15, regular: 18, large: 20))
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         return label
     }()
     
     private let categoryBadge: UIView = {
         let view = UIView()
-        view.layer.cornerRadius = 12
+        // 📱 Adaptive corner radius: 10pt (small) -> 12pt (regular) -> 14pt (large)
+        view.layer.cornerRadius = UIScreen.adaptiveSpacing(small: 10, regular: 12, large: 14)
         return view
     }()
     
     private let categoryLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 16, weight: .medium)
+        // 📱 Adaptive font size: 14pt (small) -> 16pt (regular) -> 18pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 14, regular: 16, large: 18), weight: .medium)
         label.textColor = .white
         label.textAlignment = .center
         return label

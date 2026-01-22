@@ -28,19 +28,26 @@ class MeasureViewController: UIViewController {
         var config = UIButton.Configuration.plain()
         config.title = "← Back"
         config.baseForegroundColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 24, bottom: 12, trailing: 24)
+        config.contentInsets = NSDirectionalEdgeInsets(
+            top: UIScreen.adaptiveSpacing(small: 8, regular: 12, large: 14),
+            leading: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28),
+            bottom: UIScreen.adaptiveSpacing(small: 8, regular: 12, large: 14),
+            trailing: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)
+        )
         config.background.backgroundColor = .white
         config.background.cornerRadius = 12
         
         let button = UIButton(configuration: config)
-        button.titleLabel?.font = .systemFont(ofSize: 24)
+        // 📱 Adaptive font size: 18pt (small) -> 24pt (regular) -> 26pt (large)
+        button.titleLabel?.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 18, regular: 24, large: 26))
         return button
     }()
     
     private let headerIconLabel: UILabel = {
         let label = UILabel()
         label.text = "❤️"
-        label.font = .systemFont(ofSize: 80)
+        // 📱 Adaptive icon size: 60pt (small) -> 80pt (regular) -> 96pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 60, regular: 80, large: 96))
         label.textAlignment = .center
         return label
     }()
@@ -48,7 +55,8 @@ class MeasureViewController: UIViewController {
     private let instructionLabel: UILabel = {
         let label = UILabel()
         label.text = "Follow these steps"
-        label.font = .systemFont(ofSize: 36, weight: .semibold)
+        // 📱 Adaptive font size: 28pt (small) -> 36pt (regular) -> 40pt (large)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 28, regular: 36, large: 40), weight: .semibold)
         label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         label.textAlignment = .center
         return label
@@ -57,7 +65,8 @@ class MeasureViewController: UIViewController {
     private let stepsStackView: UIStackView = {
         let stack = UIStackView()
         stack.axis = .vertical
-        stack.spacing = 20
+        // 📱 Adaptive spacing: 12pt (small) -> 20pt (regular) -> 24pt (large)
+        stack.spacing = UIScreen.adaptiveSpacing(small: 12, regular: 20, large: 24)
         stack.alignment = .fill
         return stack
     }()
@@ -65,7 +74,8 @@ class MeasureViewController: UIViewController {
     private let startButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Start Measurement", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 42, weight: .bold)
+        // 📱 Adaptive font size: 32pt (small) -> 42pt (regular) -> 48pt (large)
+        button.titleLabel?.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 32, regular: 42, large: 48), weight: .bold)
         button.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 28
@@ -138,21 +148,24 @@ class MeasureViewController: UIViewController {
         
         let numberLabel = UILabel()
         numberLabel.text = number
-        numberLabel.font = .systemFont(ofSize: 32, weight: .bold)
+        // 📱 Adaptive font size: 24pt (small) -> 32pt (regular) -> 36pt (large)
+        numberLabel.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 24, regular: 32, large: 36), weight: .bold)
         numberLabel.textColor = .white
         numberLabel.textAlignment = .center
         numberLabel.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 1.0)
-        numberLabel.layer.cornerRadius = 24
+        numberLabel.layer.cornerRadius = UIScreen.adaptiveSpacing(small: 18, regular: 24, large: 28)
         numberLabel.clipsToBounds = true
         
         let iconLabel = UILabel()
         iconLabel.text = icon
-        iconLabel.font = .systemFont(ofSize: 32)
+        // 📱 Adaptive icon size: 26pt (small) -> 32pt (regular) -> 36pt (large)
+        iconLabel.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 26, regular: 32, large: 36))
         iconLabel.textAlignment = .center
         
         let textLabel = UILabel()
         textLabel.text = text
-        textLabel.font = .systemFont(ofSize: 24)
+        // 📱 Adaptive font size: 18pt (small) -> 24pt (regular) -> 26pt (large)
+        textLabel.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 18, regular: 24, large: 26))
         textLabel.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         textLabel.numberOfLines = 0
         
@@ -166,22 +179,24 @@ class MeasureViewController: UIViewController {
         container.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 90),
+            // 📱 Adaptive height: 70pt (small) -> 90pt (regular) -> 100pt (large)
+            container.heightAnchor.constraint(greaterThanOrEqualToConstant: UIScreen.adaptiveSpacing(small: 70, regular: 90, large: 100)),
             
-            numberLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+            numberLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)),
             numberLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            numberLabel.widthAnchor.constraint(equalToConstant: 48),
-            numberLabel.heightAnchor.constraint(equalToConstant: 48),
+            // 📱 Adaptive badge size: 36pt (small) -> 48pt (regular) -> 54pt (large)
+            numberLabel.widthAnchor.constraint(equalToConstant: UIScreen.adaptiveSpacing(small: 36, regular: 48, large: 54)),
+            numberLabel.heightAnchor.constraint(equalToConstant: UIScreen.adaptiveSpacing(small: 36, regular: 48, large: 54)),
             
-            iconLabel.leadingAnchor.constraint(equalTo: numberLabel.trailingAnchor, constant: 24),
+            iconLabel.leadingAnchor.constraint(equalTo: numberLabel.trailingAnchor, constant: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)),
             iconLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            iconLabel.widthAnchor.constraint(equalToConstant: 48),
+            iconLabel.widthAnchor.constraint(equalToConstant: UIScreen.adaptiveSpacing(small: 40, regular: 48, large: 54)),
             
-            textLabel.leadingAnchor.constraint(equalTo: iconLabel.trailingAnchor, constant: 24),
-            textLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -24),
+            textLabel.leadingAnchor.constraint(equalTo: iconLabel.trailingAnchor, constant: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)),
+            textLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)),
             textLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            textLabel.topAnchor.constraint(greaterThanOrEqualTo: container.topAnchor, constant: 24),
-            textLabel.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor, constant: -24),
+            textLabel.topAnchor.constraint(greaterThanOrEqualTo: container.topAnchor, constant: UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)),
+            textLabel.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor, constant: -UIScreen.adaptiveSpacing(small: 16, regular: 24, large: 28)),
         ])
         
         return container
@@ -197,7 +212,9 @@ class MeasureViewController: UIViewController {
         startButton.translatesAutoresizingMaskIntoConstraints = false
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         
-        let padding: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 60 : 30
+        // 📱 Use adaptive padding and spacing
+        let padding: CGFloat = UIScreen.adaptivePadding
+        let verticalSpacing: CGFloat = UIScreen.adaptiveVerticalSpacing
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.topAnchor),

@@ -40,6 +40,18 @@ class ResultViewController: UIViewController {
         return button
     }()
     
+    // 📤 Upload button
+    private let uploadButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("📤 Upload to Cloud", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 16, regular: 20, large: 22), weight: .medium)
+        button.backgroundColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0)
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 12
+        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
+        return button
+    }()
+    
     private let resultTitleLabel: UILabel = {
         let label = UILabel()
         label.text = "Your Latest Reading"
@@ -169,6 +181,7 @@ class ResultViewController: UIViewController {
         scrollView.addSubview(contentView)
         
         contentView.addSubview(backButton)
+        contentView.addSubview(uploadButton)
         contentView.addSubview(simulatedWarningBanner)
         simulatedWarningBanner.addSubview(warningIconLabel)
         simulatedWarningBanner.addSubview(warningTextLabel)
@@ -187,6 +200,7 @@ class ResultViewController: UIViewController {
         setupConstraints()
         
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
+        uploadButton.addTarget(self, action: #selector(uploadTapped), for: .touchUpInside)
     }
     
     private func setupCards() {
@@ -283,6 +297,7 @@ class ResultViewController: UIViewController {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
         backButton.translatesAutoresizingMaskIntoConstraints = false
+        uploadButton.translatesAutoresizingMaskIntoConstraints = false
         simulatedWarningBanner.translatesAutoresizingMaskIntoConstraints = false
         warningIconLabel.translatesAutoresizingMaskIntoConstraints = false
         warningTextLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -312,6 +327,10 @@ class ResultViewController: UIViewController {
             
             backButton.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 20),
             backButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 48),
+            
+            // 📤 Upload button in top-right corner
+            uploadButton.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 20),
+            uploadButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -48),
             
             // ⚠️ Warning banner (shown for simulated data)
             simulatedWarningBanner.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 20),
@@ -505,6 +524,56 @@ class ResultViewController: UIViewController {
         
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
+    }
+    
+    // 📤 Upload to Cloud
+    @objc private func uploadTapped() {
+        print("📤 [ResultVC] Manual upload requested")
+        
+        // Disable button during upload
+        uploadButton.isEnabled = false
+        uploadButton.setTitle("⏳ Uploading...", for: .normal)
+        
+        CloudSyncService.shared.uploadReading(reading) { [weak self] success, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                // Re-enable button
+                self.uploadButton.isEnabled = true
+                self.uploadButton.setTitle("📤 Upload to Cloud", for: .normal)
+                
+                if success {
+                    print("✅ [ResultVC] Upload successful!")
+                    
+                    // Show success feedback
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
+                    
+                    // Temporarily change button text
+                    self.uploadButton.setTitle("✅ Uploaded!", for: .normal)
+                    self.uploadButton.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.uploadButton.setTitle("📤 Upload to Cloud", for: .normal)
+                        self.uploadButton.backgroundColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0)
+                    }
+                } else {
+                    print("❌ [ResultVC] Upload failed: \(error ?? "Unknown error")")
+                    
+                    // Show error alert
+                    let alert = UIAlertController(
+                        title: "Upload Failed",
+                        message: "Failed to upload data to cloud. Your data is saved locally.\n\nError: \(error ?? "Unknown error")",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                    
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.error)
+                }
+            }
+        }
     }
     
     // MARK: - Helper Methods

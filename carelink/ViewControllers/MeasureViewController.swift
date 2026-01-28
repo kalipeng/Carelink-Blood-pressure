@@ -266,6 +266,36 @@ class MeasureViewController: UIViewController {
             name: .deviceDisconnected,
             object: nil
         )
+        
+        // 🔘 Listen for device button events (when user presses start/stop on physical device)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeviceMeasurementStarted),
+            name: .measurementStarted,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeviceMeasurementStopped),
+            name: .measurementError,
+            object: nil
+        )
+        
+        // 📤 Listen for upload events
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUploadSuccess),
+            name: Notification.Name("uploadSuccess"),
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUploadFailed),
+            name: Notification.Name("uploadFailed"),
+            object: nil
+        )
     }
     
     // MARK: - Device Management
@@ -279,7 +309,11 @@ class MeasureViewController: UIViewController {
     
     // MARK: - Measurement
     @objc private func startMeasurementTapped() {
-        startMeasurement()
+        if isMeasuring {
+            stopMeasurement()
+        } else {
+            startMeasurement()
+        }
     }
     
     private func startMeasurement() {
@@ -287,10 +321,11 @@ class MeasureViewController: UIViewController {
         
         isMeasuring = true
         
-        // UI updates
-        startButton.setTitle("", for: .normal)
-        activityIndicator.startAnimating()
-        startButton.isEnabled = false
+        // UI updates - Change to Stop button
+        startButton.setTitle("Stop Measurement", for: .normal)
+        startButton.backgroundColor = UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 1.0) // Red color
+        startButton.layer.shadowColor = UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 0.4).cgColor
+        startButton.isEnabled = true
         
         // Voice guidance
         VoiceService.shared.speakMeasurementStart()
@@ -325,6 +360,28 @@ class MeasureViewController: UIViewController {
             )
             self.handleMeasurementComplete(reading)
         }
+    }
+    
+    private func stopMeasurement() {
+        guard isMeasuring else { return }
+        
+        print("🛑 [MeasureVC] Stopping measurement...")
+        
+        // Stop the measurement via iHealthService
+        iHealthService.shared.stopMeasurement()
+        
+        // Reset UI
+        isMeasuring = false
+        startButton.setTitle("Start Measurement", for: .normal)
+        startButton.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
+        startButton.layer.shadowColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.4).cgColor
+        startButton.isEnabled = true
+        activityIndicator.stopAnimating()
+        
+        // Voice feedback
+        VoiceService.shared.speakError("Measurement stopped")
+        
+        print("✅ [MeasureVC] Measurement stopped by user")
     }
     
     private func handleMeasurementComplete(_ reading: BloodPressureReading) {
@@ -382,10 +439,70 @@ class MeasureViewController: UIViewController {
         }
     }
     
+    // 🔘 Handle device button events
+    @objc private func handleDeviceMeasurementStarted() {
+        print("▶️ [MeasureVC] Device measurement started (from device button)")
+        
+        // Update UI to reflect that measurement is in progress
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, !self.isMeasuring else { return }
+            
+            self.isMeasuring = true
+            self.startButton.setTitle("Stop Measurement", for: .normal)
+            self.startButton.backgroundColor = UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 1.0)
+            self.startButton.layer.shadowColor = UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 0.4).cgColor
+            self.startButton.isEnabled = true
+            
+            // Voice feedback
+            VoiceService.shared.speakMeasurementStart()
+        }
+    }
+    
+    @objc private func handleDeviceMeasurementStopped(notification: Notification) {
+        print("⏹️ [MeasureVC] Device measurement stopped (from device button)")
+        
+        // Update UI
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.isMeasuring = false
+            self.startButton.setTitle("Start Measurement", for: .normal)
+            self.startButton.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
+            self.startButton.layer.shadowColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.4).cgColor
+            self.startButton.isEnabled = true
+            self.activityIndicator.stopAnimating()
+            
+            // Voice feedback
+            VoiceService.shared.speakError("Measurement stopped by device")
+        }
+    }
+    
+    // 📤 Handle upload events
+    @objc private func handleUploadSuccess(notification: Notification) {
+        print("✅ [MeasureVC] Data uploaded successfully to cloud")
+        
+        // Optional: Show a subtle success indicator
+        DispatchQueue.main.async {
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        }
+    }
+    
+    @objc private func handleUploadFailed(notification: Notification) {
+        if let error = notification.userInfo?["error"] as? String {
+            print("❌ [MeasureVC] Upload failed: \(error)")
+        }
+        
+        // Data is still saved locally, so this is not critical
+        // No need to show alert to user
+    }
+    
     private func handleMeasurementError() {
         isMeasuring = false
         activityIndicator.stopAnimating()
         startButton.setTitle("Start Measurement", for: .normal)
+        startButton.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
+        startButton.layer.shadowColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.4).cgColor
         startButton.isEnabled = true
         
         VoiceService.shared.speakError("Measurement failed")

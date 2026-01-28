@@ -177,6 +177,24 @@ class iHealthService: NSObject {
         NotificationCenter.default.post(name: .measurementStarted, object: nil)
     }
     
+    // MARK: - Stop Measurement
+    func stopMeasurement() {
+        print("\n🛑 [iHealthService] ========== Stopping Measurement ==========")
+        
+        guard isConnected else {
+            print("❌ [iHealthService] Device not connected")
+            return
+        }
+        
+        // Send stop command to device
+        // Command format: 0xFD 0xFD 0xFA 0x05 0x12 0x00 (0x12 = stop command)
+        let command = Data([0xFD, 0xFD, 0xFA, 0x05, 0x12, 0x00])
+        sendCommand(command)
+        
+        print("✅ [iHealthService] Stop command sent to device")
+        print("🛑 [iHealthService] =====================================\n")
+    }
+    
     // MARK: - Passive Measurement Data Reception
     // If user manually presses blood pressure monitor button, app will auto-receive data
     // No need to call startMeasurement()
@@ -209,13 +227,23 @@ class iHealthService: NSObject {
         }
         
         // Check data packet identifier (Byte 0)
-        // Must be 0xFD or 0xFE
-        guard data[0] == 0xFD || data[0] == 0xFE else {
-            print("⚠️ Invalid data packet identifier: 0x\(String(format: "%02X", data[0]))")
+        // 0xFD = Measurement result data
+        // 0xFE = Status/Event data (start/stop signals from device button press)
+        let packetType = data[0]
+        
+        // 🎯 Handle device button events (when user presses start/stop on device)
+        if packetType == 0xFE {
+            print("🔘 [iHealthService] Device button event detected")
+            handleDeviceEvent(data)
             return nil
         }
         
-        // Parse data (Little Endian format)
+        guard packetType == 0xFD else {
+            print("⚠️ Invalid data packet identifier: 0x\(String(format: "%02X", packetType))")
+            return nil
+        }
+        
+        // Parse measurement data (Little Endian format)
         // Byte 1-2: Systolic - LSB first
         let systolic = Int(data[1]) | (Int(data[2]) << 8)
         
@@ -252,6 +280,39 @@ class iHealthService: NSObject {
             pulse: pulse,
             source: "bluetooth"  // 🔍 Marked as real Bluetooth data
         )
+    }
+    
+    // MARK: - Handle Device Events
+    // Handle signals from device button presses (start/stop)
+    private func handleDeviceEvent(_ data: Data) {
+        guard data.count >= 2 else { return }
+        
+        let eventCode = data[1]
+        
+        switch eventCode {
+        case 0x01:
+            // Device start button pressed
+            print("▶️ [iHealthService] Device START button pressed")
+            print("💡 [iHealthService] User started measurement on device")
+            NotificationCenter.default.post(name: .measurementStarted, object: nil)
+            
+        case 0x02:
+            // Device stop button pressed
+            print("⏹️ [iHealthService] Device STOP button pressed")
+            print("💡 [iHealthService] User stopped measurement on device")
+            NotificationCenter.default.post(
+                name: .measurementError,
+                object: nil,
+                userInfo: ["reason": "User stopped measurement on device"]
+            )
+            
+        case 0x03:
+            // Device measuring in progress
+            print("⏳ [iHealthService] Device is measuring...")
+            
+        default:
+            print("❓ [iHealthService] Unknown device event: 0x\(String(format: "%02X", eventCode))")
+        }
     }
 }
 
@@ -451,6 +512,10 @@ extension iHealthService: CBPeripheralDelegate {
             
             // Save locally
             BloodPressureReading.add(reading)
+            print("💾 Saved to local storage")
+            
+            // 📤 Auto-upload to server
+            uploadReadingToCloud(reading)
             
             // Callback
             measurementCallback?(reading)
@@ -463,6 +528,38 @@ extension iHealthService: CBPeripheralDelegate {
             
             // Voice announcement (not needed for now)
             // VoiceService.shared.speakMeasurement(reading)
+        }
+    }
+    
+    // MARK: - Upload to Cloud
+    private func uploadReadingToCloud(_ reading: BloodPressureReading) {
+        print("📤 [iHealthService] Uploading measurement to cloud...")
+        
+        CloudSyncService.shared.uploadReading(reading) { success, error in
+            if success {
+                print("✅ [iHealthService] Upload successful!")
+                
+                // Send notification for upload success
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("uploadSuccess"),
+                        object: nil,
+                        userInfo: ["reading": reading]
+                    )
+                }
+            } else {
+                print("❌ [iHealthService] Upload failed: \(error ?? "Unknown error")")
+                print("💡 [iHealthService] Data is saved locally and will retry upload later")
+                
+                // Send notification for upload failure
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("uploadFailed"),
+                        object: nil,
+                        userInfo: ["reading": reading, "error": error ?? "Unknown error"]
+                    )
+                }
+            }
         }
     }
     

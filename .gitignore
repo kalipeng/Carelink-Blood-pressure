@@ -1,0 +1,30 @@
+# Xcode
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+.DS_Store
+
+# SDK Files (too large for git)
+*.zip
+*.jar
+iHealth-ios-sdk-example-main/
+iHealth Andorid Native SDK V2.15.1 /
+*.pdf
+jniLibs.zip
+
+# CocoaPods
+Pods/
+Podfile.lock

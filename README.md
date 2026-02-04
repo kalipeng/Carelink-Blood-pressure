@@ -1,318 +1,257 @@
-# 🏥 CareLink - iHealth 血压监测 App
+# 📱 CareLink - AI Blood Pressure Monitor
 
-智能血压监测应用，支持 iHealth KN-550BT 蓝牙血压计。
-
----
-
-## 🚀 快速开始
-
-### 🚨 iPhone 看不到蓝牙设备？
-
-**→ 马上看这个：** [`ONE_PAGE_GUIDE.md`](ONE_PAGE_GUIDE.md)
-
-**一句话解决：** 长按血压计的 "MEMORY" 按钮 5 秒
+A senior-friendly iOS app that uses **GPT-4 Vision** to read blood pressure monitors automatically.
 
 ---
 
-### 📚 完整文档
+## 🎯 What This Is
 
-| 问题 | 解决方案 | 时间 |
-|------|----------|------|
-| 🆘 **不知道从哪开始** | [`START_HERE.md`](START_HERE.md) | 2 分钟 |
-| 📱 **iPhone 看不到设备** | [`ONE_PAGE_GUIDE.md`](ONE_PAGE_GUIDE.md) | 5 分钟 |
-| ⚡ **需要快速诊断** | [`QUICK_DIAGNOSIS.md`](QUICK_DIAGNOSIS.md) | 3 分钟 |
-| 🔧 **App 连接不上** | [`FORCE_CONNECT_GUIDE.md`](FORCE_CONNECT_GUIDE.md) | 10 分钟 |
-| 📶 **详细配对方法** | [`DEVICE_ACTIVATION_GUIDE.md`](DEVICE_ACTIVATION_GUIDE.md) | 15 分钟 |
-| 📊 **如何测量** | [`MEASUREMENT_GUIDE.md`](MEASUREMENT_GUIDE.md) | 10 分钟 |
-| ✅ **验证真实数据** | [`HOW_TO_VERIFY_DATA.md`](HOW_TO_VERIFY_DATA.md) | 8 分钟 |
+An iOS app that helps seniors track blood pressure by:
+
+- 📷 **AI Camera Reading** - Point camera at BP monitor, AI reads the numbers
+- 🎤 **Voice Guidance** - Step-by-step audio instructions
+- 🗣️ **Voice Assistant** - Ask questions, get health advice
+- 📊 **History Tracking** - View all past readings
+- ☁️ **Cloud Sync** - Upload to clinician dashboard
 
 ---
 
-## ⚡ 3 步快速连接（5 分钟）
+## ✨ Features
 
-### Step 1：激活血压计（2 分钟）
+### 🤖 AI-Powered Measurement
+| Feature | Description |
+|---------|-------------|
+| **GPT-4 Vision** | Reads BP monitor screen automatically |
+| **High Accuracy** | Reads each digit carefully, validates results |
+| **Confirmation** | Shows detected values for user verification |
+| **Manual Fallback** | Enter values manually if needed |
+
+### 🎤 Voice Features
+| Feature | Description |
+|---------|-------------|
+| **Auto Voice Guide** | Speaks each step automatically |
+| **Whisper API** | Voice-to-text for hands-free input |
+| **AI Chat** | Ask health questions via voice |
+
+### 📱 User Interface
+| Feature | Description |
+|---------|-------------|
+| **Large Buttons** | Easy touch targets for seniors |
+| **High Contrast** | T-Mobile pink theme, clear text |
+| **Simple Flow** | Home → Measure → Result → History |
+
+---
+
+## 📸 How It Works
+
+### Measurement Flow
 
 ```
-1. 装入 4 节 AA 新电池
-2. 按 "电源" 按钮开机
-3. 长按 "MEMORY" 按钮 5-10 秒
-4. 确认蓝牙图标开始闪烁
+1. Open App
+      ↓
+2. Tap "Measure" tab
+      ↓
+3. Voice Guide Starts Automatically
+   - "Turn on your blood pressure monitor..."
+   - "Put on the cuff..."
+   - "Press START..."
+   - "Wait for measurement..." (60 seconds)
+   - "Point camera at the screen..."
+      ↓
+4. Tap "📸 Capture Reading" (anytime numbers are visible)
+      ↓
+5. AI Reads the Numbers
+   - GPT-4 Vision analyzes the image
+   - Extracts systolic, diastolic, pulse
+      ↓
+6. Confirm Reading
+   - "I read 120 over 80, pulse 72. Is this correct?"
+   - [Correct, Save] [Wrong, Re-capture] [Edit Manually]
+      ↓
+7. Result Saved
+   - Stored locally
+   - Uploaded to cloud API
 ```
 
 ---
 
-### Step 2：确认 iPhone 能看到（1 分钟）
+## 🛠️ Technical Stack
 
+### iOS App (Swift/UIKit)
 ```
-1. iPhone 设置 > 蓝牙 > 开启
-2. 在 "其他设备" 中查找 "KN-550BT"
-3. ✅ 看到了？太好了！
-4. ❌ 不要点击设备！
+carelink/
+├── ViewControllers/
+│   ├── HomeViewController.swift      # AI Voice Assistant
+│   ├── MeasureViewController.swift   # Camera + GPT-4 Vision
+│   ├── ResultViewController.swift    # Display results
+│   ├── HistoryViewController.swift   # Past readings
+│   └── SettingsViewController.swift  # API key config
+├── Services/
+│   ├── OpenAIService.swift           # GPT-4 Vision + Whisper + Chat
+│   ├── AudioRecorderService.swift    # Voice recording
+│   ├── VoiceService.swift            # Text-to-speech
+│   ├── CloudSyncService.swift        # API upload
+│   └── VoiceAIAssistantService.swift # Voice assistant
+├── Models/
+│   └── BloodPressureReading.swift    # Data model
+└── Extensions/
+    └── ...
 ```
+
+### APIs Used
+| API | Purpose |
+|-----|---------|
+| **GPT-4o Vision** | Read BP monitor screens |
+| **Whisper** | Voice-to-text transcription |
+| **GPT-4o Chat** | AI assistant responses |
 
 ---
 
-### Step 3：运行 App（2 分钟）
+## ⚙️ Setup
 
-```
-1. 在 Xcode 按 ⌘ + R
-2. 等待 2 秒（自动连接）
-3. 查看控制台输出
-4. 等待 "🎉 设备已就绪"
-5. App 界面显示 "Connected" 🟢
-```
-
----
-
-## 🎯 功能特性
-
-### ✅ 已实现
-
-- 🔵 **蓝牙连接** - 自动扫描和连接 iHealth KN-550BT
-- 📊 **实时测量** - 获取真实血压数据
-- 📱 **数据管理** - 保存和查看历史记录
-- 🎙️ **语音播报** - 测量结果语音提示
-- 📈 **数据分析** - 血压分类和健康建议
-- 🔍 **数据验证** - 清晰区分真实数据和模拟数据
-
-### 🎨 界面
-
-- **主页** - 设备状态、快速测量
-- **测量** - 实时测量进度、结果显示
-- **历史** - 测量记录列表、数据筛选
-- **结果** - 详细数据、健康建议
-
----
-
-## 🛠️ 技术栈
-
-### iOS 框架
-- UIKit - 界面框架
-- CoreBluetooth - 蓝牙通信
-- AVFoundation - 语音合成
-- UserDefaults - 数据持久化
-
-### 自定义组件
-- `iHealthService` - 蓝牙服务管理
-- `BloodPressureReading` - 数据模型
-- `BluetoothConnectionHelper` - 连接辅助工具
-- `DebugHelper` - 调试工具
-
----
-
-## 📋 系统要求
-
+### 1. Requirements
 - iOS 15.0+
-- Xcode 13.0+
-- Swift 5.0+
-- 支持蓝牙 4.0+ 的 iPhone
+- iPhone or iPad with camera
+- OpenAI API key
 
----
+### 2. Configure API Key
 
-## 🔧 开发设置
+**Option A: In App**
+1. Open app → Home screen
+2. Tap "⚙️ Configure API" 
+3. Enter your OpenAI API key
 
-### 1. 克隆项目
-
-```bash
-git clone <repository-url>
-cd carelink
+**Option B: In Code**
+```swift
+// OpenAIService.swift, line 22
+return "sk-YOUR-OPENAI-API-KEY-HERE"
 ```
 
-### 2. 在 Xcode 中打开
-
+### 3. Build & Run
 ```bash
+# Open in Xcode
 open carelink.xcodeproj
-```
 
-### 3. 配置权限
-
-确保 `Info.plist` 包含：
-```xml
-<key>NSBluetoothAlwaysUsageDescription</key>
-<string>需要蓝牙权限连接血压计</string>
-
-<key>NSBluetoothPeripheralUsageDescription</key>
-<string>需要蓝牙权限连接血压计</string>
-
-<key>UIBackgroundModes</key>
-<array>
-    <string>bluetooth-central</string>
-</array>
-```
-
-### 4. 运行项目
-
-```bash
-⌘ + R
+# Build and run on device (camera requires real device)
+# ⌘ + R
 ```
 
 ---
 
-## 🧪 调试工具
+## 📱 Screens
 
-### 查看蓝牙状态
+### Home Screen
+```
+┌─────────────────────────────┐
+│                             │
+│     ○ ○ ○  (wave animation) │
+│                             │
+│   How can I help you today? │
+│     Tap to start talking    │
+│                             │
+│      [Configure API]        │
+│                             │
+├─────────────────────────────┤
+│  🏠    📏    📊    ⚙️      │
+│ Home  Measure History Settings│
+└─────────────────────────────┘
+```
 
-在 `HomeViewController.swift` 中：
+### Measure Screen
+```
+┌─────────────────────────────┐
+│ ← Back   AI-Guided   00:30 🔄│
+│                             │
+│     ┌─────────────────┐     │
+│     │                 │     │
+│     │  Camera Preview │     │
+│     │                 │     │
+│     │  [📸 Capture]   │     │
+│     └─────────────────┘     │
+├─────────────────────────────┤
+│ 🩺 Blood Pressure Measurement│
+│                             │
+│ ● Step 1: Turn on monitor   │
+│ ○ Step 2: Put on cuff       │
+│ ○ Step 3: Press START       │
+│ ○ Step 4: Wait (60 sec)     │
+│ ○ Step 5: Point camera      │
+│                             │
+│ [✏️ Manual] [🎤 Voice]      │
+└─────────────────────────────┘
+```
 
+---
+
+## 🔧 Configuration
+
+### Cloud API Endpoint
 ```swift
-// 双击右上角状态区域
-// 会显示详细的蓝牙状态信息
+// CloudSyncService.swift
+// For Simulator:
+private let baseURL = "http://localhost:5001/api"
+
+// For Physical Device (use your Mac's IP):
+private let baseURL = "http://192.168.1.100:5001/api"
 ```
 
-### 强制连接
-
-在 `HomeViewController.swift` 中：
-
+### Voice Settings
 ```swift
-// 三击右上角状态区域
-// 会强制启动完整连接流程
-```
-
-### 添加测试数据
-
-在 `DebugHelper.swift` 中：
-
-```swift
-DebugHelper.addTestData()    // 添加测试数据
-DebugHelper.printAllData()   // 打印所有数据
-DebugHelper.clearAllData()   // 清空所有数据
+// VoiceService.swift
+// Speech rate (0.4-0.5 is slow, good for seniors)
+utterance.rate = 0.45
 ```
 
 ---
 
-## 📊 数据模型
+## 📊 Blood Pressure Classification
 
-### BloodPressureReading
-
-```swift
-struct BloodPressureReading {
-    let systolic: Int           // 收缩压
-    let diastolic: Int          // 舒张压
-    let pulse: Int              // 脉搏
-    let date: Date              // 测量时间
-    let source: DataSource      // 数据来源
-    
-    enum DataSource {
-        case bluetooth   // 真实蓝牙数据
-        case simulated   // 模拟数据
-        case manual      // 手动输入
-    }
-}
-```
+| Category | Systolic | Diastolic | Color |
+|----------|----------|-----------|-------|
+| Normal | < 120 | < 80 | 🟢 Green |
+| Elevated | 120-129 | < 80 | 🟡 Yellow |
+| High Stage 1 | 130-139 | 80-89 | 🟠 Orange |
+| High Stage 2 | 140-179 | 90-119 | 🔴 Red |
+| Crisis | ≥ 180 | ≥ 120 | 🔴 Dark Red |
 
 ---
 
-## 🔌 蓝牙协议
+## 🐛 Troubleshooting
 
-### iHealth KN-550BT 规格
+### "API key not configured"
+→ Go to Home → Configure API → Enter your OpenAI key
 
-```
-服务 UUID:   636F6D2E-6A69-7561-6E2E-646576000000
-NOTIFY UUID: 7365642E-6A69-7561-6E2E-646576000000
-WRITE UUID:  7265632E-6A69-7561-6E2E-646576000000
-```
+### Camera not working
+→ Must run on real device (not simulator)
+→ Check camera permissions in Settings
 
-### 数据格式
+### AI can't read the numbers
+→ Make sure screen is well-lit
+→ Hold camera steady
+→ Numbers should fill most of the frame
+→ Try switching to front/back camera (🔄 button)
 
-```
-字节 0-1:  收缩压 (mmHg, little-endian)
-字节 2-3:  舒张压 (mmHg, little-endian)
-字节 4-5:  脉搏 (bpm, little-endian)
-字节 6-11: 时间戳 (年月日时分秒)
-```
-
----
-
-## 🐛 故障排查
-
-### iPhone 看不到设备
-
-**最常见原因：** 设备没有进入配对模式
-
-**解决方法：**
-1. 长按 "MEMORY" 按钮 5 秒
-2. 或取出电池 30 秒后重新装入
-3. 详见 [`ONE_PAGE_GUIDE.md`](ONE_PAGE_GUIDE.md)
+### Voice not working
+→ Check device is not on silent mode
+→ Check volume is turned up
 
 ---
 
-### App 连接不上
+## 📁 Related Projects
 
-**最常见原因：** 在系统蓝牙中手动配对了
-
-**解决方法：**
-1. iPhone 设置 > 蓝牙
-2. 找到 "KN-550BT"
-3. 点击 (i) > 忽略此设备
-4. 重新运行 app
-5. 详见 [`FORCE_CONNECT_GUIDE.md`](FORCE_CONNECT_GUIDE.md)
+| Branch | Platform | Description |
+|--------|----------|-------------|
+| `ios-app` | iOS | This app - GPT-4 Vision |
+| `api` | Raspberry Pi | Python backend + ELECROW screen |
 
 ---
 
-### 显示模拟数据
+## 📝 License
 
-**最常见原因：** 测量时间不够长
-
-**解决方法：**
-1. 等待至少 40-60 秒
-2. 不要在 30 秒时点击完成
-3. 详见 [`MEASUREMENT_GUIDE.md`](MEASUREMENT_GUIDE.md)
+MIT License - Free to use and modify
 
 ---
 
-## 📖 完整文档列表
+**Built for seniors who need simple, reliable blood pressure monitoring** ❤️
 
-### 基础指南
-- [`START_HERE.md`](START_HERE.md) - 总览和导航
-- [`ONE_PAGE_GUIDE.md`](ONE_PAGE_GUIDE.md) - 一页快速指南
-- [`QUICK_DIAGNOSIS.md`](QUICK_DIAGNOSIS.md) - 快速诊断
-
-### 详细指南
-- [`DEVICE_ACTIVATION_GUIDE.md`](DEVICE_ACTIVATION_GUIDE.md) - 设备激活详细指南
-- [`FORCE_CONNECT_GUIDE.md`](FORCE_CONNECT_GUIDE.md) - 强制连接完整流程
-- [`MEASUREMENT_GUIDE.md`](MEASUREMENT_GUIDE.md) - 测量使用指南
-
-### 验证指南
-- [`HOW_TO_VERIFY_DATA.md`](HOW_TO_VERIFY_DATA.md) - 数据验证方法
-- [`DATA_VERIFICATION_GUIDE.md`](DATA_VERIFICATION_GUIDE.md) - 详细验证流程
-
----
-
-## 💡 关键提示
-
-### 🎯 5 个最重要的点
-
-1. **进入配对模式** - 长按 MEMORY 按钮 5 秒
-2. **不要手动配对** - 不要在系统蓝牙中点击设备
-3. **让 App 自动连接** - 运行 app 等待 2 秒
-4. **测量时间充足** - 等待 40-60 秒，不是 30 秒
-5. **使用新电池** - 低电量会导致蓝牙不稳定
-
----
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
----
-
-## 📄 许可
-
-MIT License
-
----
-
-## 📞 支持
-
-- 查看文档：[`START_HERE.md`](START_HERE.md)
-- 快速诊断：[`QUICK_DIAGNOSIS.md`](QUICK_DIAGNOSIS.md)
-- 设备问题：[`ONE_PAGE_GUIDE.md`](ONE_PAGE_GUIDE.md)
-- 连接问题：[`FORCE_CONNECT_GUIDE.md`](FORCE_CONNECT_GUIDE.md)
-
----
-
-**记住：90% 的问题都是因为设备没有进入配对模式。长按 MEMORY 按钮 5 秒能解决大部分问题！** 🎉
-
----
-
-**最后更新：** 2026-01-16
+Made with GPT-4 Vision + Whisper + Swift

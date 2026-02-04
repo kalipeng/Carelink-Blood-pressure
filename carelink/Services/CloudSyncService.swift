@@ -11,8 +11,10 @@ class CloudSyncService {
     
     static let shared = CloudSyncService()
     
-    // 配置 API 端点
-    private let baseURL = "https://your-api-endpoint.com/api"
+    // API Endpoint Configuration
+    // For Simulator: http://localhost:5001/api
+    // For Physical Device: http://YOUR_MAC_IP:5001/api (e.g. http://192.168.1.100:5001/api)
+    private let baseURL = "http://localhost:5001/api"
     private var apiKey: String? = nil
     
     private init() {

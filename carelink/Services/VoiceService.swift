@@ -1,8 +1,8 @@
 //
 //  VoiceService.swift
-//  HealthPad
+//  carelink
 //
-//  语音提示服务 - 为老年人提供语音指导
+//  Voice Service - Provides voice guidance for elderly users
 //
 
 import Foundation
@@ -29,70 +29,69 @@ class VoiceService: NSObject {
         super.init()
         synthesizer.delegate = self
         
-        // 从设置加载
+        // Load from settings
         _isEnabled = UserDefaults.standard.bool(forKey: "voiceEnabled")
         if UserDefaults.standard.object(forKey: "voiceEnabled") == nil {
             _isEnabled = true
         }
     }
     
-    // MARK: - 语音播报
+    // MARK: - Text to Speech
     func speak(_ text: String, rate: Float = 0.45) {
         guard _isEnabled else { return }
         
-        // 停止当前播报
+        // Stop current speech
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
         
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
-        utterance.rate = rate  // 0.4-0.5 为慢速，适合老年人
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.rate = rate  // 0.4-0.5 is slow, good for elderly
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
         
         synthesizer.speak(utterance)
-        print("🔊 语音: \(text)")
+        print("🔊 Voice: \(text)")
     }
     
-    // MARK: - 快捷语音
+    // MARK: - Quick Voice Prompts
     func speakWelcome() {
-        speak("欢迎使用健康监测系统")
+        speak("Welcome to the health monitoring system")
     }
     
     func speakDeviceConnected() {
-        speak("设备已连接")
+        speak("Device connected")
     }
     
     func speakDeviceDisconnected() {
-        speak("设备已断开连接，请检查血压计")
+        speak("Device disconnected. Please check your blood pressure monitor")
     }
     
     func speakMeasurementStart() {
-        speak("开始测量，请保持安静，放松身体")
+        speak("Starting measurement. Please stay still and relax")
     }
     
     func speakMeasurementResult(_ reading: BloodPressureReading) {
         let text = """
-        测量完成。
-        收缩压 \(reading.systolic)，
-        舒张压 \(reading.diastolic)，
-        心率 \(reading.pulse)。
-        血压\(reading.category)。
-        \(reading.recommendation)
+        Measurement complete.
+        Systolic \(reading.systolic),
+        Diastolic \(reading.diastolic),
+        Pulse \(reading.pulse).
+        Blood pressure is \(reading.category).
         """
         speak(text)
     }
     
     func speakError(_ message: String) {
-        speak("出现错误：\(message)")
+        speak("Error: \(message)")
     }
     
     func speakConnectionRequired() {
-        speak("请先连接血压计设备")
+        speak("Please connect your blood pressure monitor first")
     }
     
-    // MARK: - 设置
+    // MARK: - Settings
     private func setEnabled(_ enabled: Bool) {
         _isEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: "voiceEnabled")
@@ -106,7 +105,7 @@ class VoiceService: NSObject {
         setEnabled(!_isEnabled)
     }
     
-    // MARK: - 停止
+    // MARK: - Stop
     func stop() {
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
@@ -118,14 +117,14 @@ class VoiceService: NSObject {
 extension VoiceService: AVSpeechSynthesizerDelegate {
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        print("🔊 开始播报")
+        print("🔊 Speech started")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        print("✅ 播报完成")
+        print("✅ Speech finished")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        print("⏹️ 播报取消")
+        print("⏹️ Speech cancelled")
     }
 }

@@ -1,8 +1,8 @@
 //
 //  HomeViewController.swift
-//  HealthPad
+//  carelink
 //
-//  Home - Health Pad Main Screen
+//  Home - Health Pad Main Screen with AI Voice Assistant
 //
 
 import UIKit
@@ -15,7 +15,6 @@ class HomeViewController: UIViewController {
     
     private let titleLabel: UILabel = {
         let label = UILabel()
-        // 📱 Adaptive font size: 32pt (small) -> 42pt (regular) -> 48pt (large)
         label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 32, regular: 42, large: 48), weight: .bold)
         label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         label.text = "Health Pad"
@@ -24,105 +23,102 @@ class HomeViewController: UIViewController {
     
     private let dateLabel: UILabel = {
         let label = UILabel()
-        // 📱 Adaptive font size: 16pt (small) -> 20pt (regular) -> 22pt (large)
         label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 16, regular: 20, large: 22))
         label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
         return label
     }()
     
-    // MARK: - 🔵 Prominent Bluetooth Connection Status Panel
+    // MARK: - AI Voice Assistant Panel
     
-    private let bluetoothStatusPanel: UIView = {
+    private let aiAssistantPanel: UIView = {
         let view = UIView()
-        view.backgroundColor = UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
-        view.layer.cornerRadius = 20
-        view.layer.borderWidth = 2
-        view.layer.borderColor = UIColor(red: 0.8, green: 0.8, blue: 0.82, alpha: 1.0).cgColor
+        view.backgroundColor = UIColor(red: 1.0, green: 0.97, blue: 0.98, alpha: 1.0) // Subtle pink tint
+        view.layer.cornerRadius = 24
+        view.layer.borderWidth = 1
+        view.layer.borderColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 0.2).cgColor
         return view
     }()
     
-    private let bluetoothIconLabel: UILabel = {
+    // T-Mobile Pink: #E20074
+    private let tMobilePink = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 1.0)
+    
+    // Wave ripple circles
+    private let waveContainer: UIView = {
+        let view = UIView()
+        view.backgroundColor = .clear
+        return view
+    }()
+    
+    private let waveCircle1: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 0.1)
+        view.layer.cornerRadius = 50
+        return view
+    }()
+    
+    private let waveCircle2: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 0.2)
+        view.layer.cornerRadius = 40
+        return view
+    }()
+    
+    private let waveCircle3: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 0.35)
+        view.layer.cornerRadius = 30
+        return view
+    }()
+    
+    private let micButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 1.0)
+        button.layer.cornerRadius = 35
+        button.setTitle("", for: .normal)
+        button.layer.shadowColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 0.4).cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowOpacity = 1.0
+        button.layer.shadowRadius = 8
+        return button
+    }()
+    
+    private let aiGreetingLabel: UILabel = {
         let label = UILabel()
-        label.text = "📡"
-        // 📱 Adaptive icon size: 48pt (small) -> 60pt (regular) -> 72pt (large)
-        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 48, regular: 60, large: 72))
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 20, regular: 26, large: 30), weight: .semibold)
+        label.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.25, alpha: 1.0)
+        label.text = "How can I help you today?"
         label.textAlignment = .center
         return label
     }()
     
-    private let connectionStatusLabel: UILabel = {
+    private let aiSubtitleLabel: UILabel = {
         let label = UILabel()
-        // 📱 Adaptive font size: 22pt (small) -> 28pt (regular) -> 32pt (large)
-        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 22, regular: 28, large: 32), weight: .bold)
-        label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        label.text = "Not Connected"
-        label.textAlignment = .center
-        return label
-    }()
-    
-    private let deviceNameLabel: UILabel = {
-        let label = UILabel()
-        // 📱 Adaptive font size: 15pt (small) -> 18pt (regular) -> 20pt (large)
-        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 15, regular: 18, large: 20))
-        label.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
-        label.text = "Waiting to scan device..."
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 14, regular: 16, large: 18))
+        label.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.55, alpha: 1.0)
+        label.text = "Tap to start talking"
         label.textAlignment = .center
         label.numberOfLines = 2
         return label
     }()
     
-    private let connectionTimeLabel: UILabel = {
+    private let apiStatusLabel: UILabel = {
         let label = UILabel()
-        // 📱 Adaptive font size: 14pt (small) -> 16pt (regular) -> 18pt (large)
-        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 14, regular: 16, large: 18))
-        label.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 12, regular: 14, large: 16))
+        label.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
         label.text = ""
         label.textAlignment = .center
         return label
     }()
     
-    private let statusIndicatorView: UIView = {
-        let view = UIView()
-        view.layer.cornerRadius = 12
-        view.backgroundColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 1.0)
-        return view
+    private let configureAPIButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Settings", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        button.setTitleColor(UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 1.0), for: .normal)
+        return button
     }()
     
-    private let pulseAnimationView: UIView = {
-        let view = UIView()
-        view.layer.cornerRadius = 15
-        view.backgroundColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 0.3)
-        view.alpha = 0
-        return view
-    }()
-    
-    // 兼容旧的 UI 组件
-    private let deviceStatusView: UIView = {
-        let view = UIView()
-        view.backgroundColor = .white
-        view.layer.cornerRadius = 12
-        return view
-    }()
-    
-    private let statusDot: UIView = {
-        let dot = UIView()
-        dot.layer.cornerRadius = 8
-        dot.backgroundColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        return dot
-    }()
-    
-    private let statusLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 20)
-        label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        label.text = "Not Connected"
-        return label
-    }()
-    
-    // Connection time tracking
-    private var connectionStartTime: Date?
-    private var connectionTimeTimer: Timer?
-    
+    // Buttons
     private let buttonsContainer = UIView()
     
     private let measureButton: UIButton = {
@@ -206,72 +202,28 @@ class HomeViewController: UIViewController {
         return button
     }()
     
+    // Voice recording state
+    private var isRecording = false
+    private var waveAnimationTimer: Timer?
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupNotifications()
         updateDateTime()
-        updateDeviceStatus()
+        updateAPIStatus()
         
-        // 🧪 Debug: Print currently saved data
         #if DEBUG
         print("\n🏠 [HomeVC] ========== App Launch ==========")
         DebugHelper.printSavedData()
-        
-        // 🎯 Uncomment the line below to automatically add test data
-        // DebugHelper.addTestData()
-        
-        // Add a hidden test gesture (three-finger double tap on title to add test data)
-        let testGesture = UITapGestureRecognizer(target: self, action: #selector(handleDebugTap))
-        testGesture.numberOfTapsRequired = 2
-        testGesture.numberOfTouchesRequired = 3
-        titleLabel.addGestureRecognizer(testGesture)
-        titleLabel.isUserInteractionEnabled = true
         #endif
-        
-        // 🔍 Add Bluetooth check gesture (double tap device status area)
-        let connectionCheckGesture = UITapGestureRecognizer(target: self, action: #selector(checkBluetoothConnection))
-        connectionCheckGesture.numberOfTapsRequired = 2
-        deviceStatusView.addGestureRecognizer(connectionCheckGesture)
-        deviceStatusView.isUserInteractionEnabled = true
-        
-        // 🔧 Force connect gesture (triple tap device status area)
-        let forceConnectGesture = UITapGestureRecognizer(target: self, action: #selector(forceConnect))
-        forceConnectGesture.numberOfTapsRequired = 3
-        deviceStatusView.addGestureRecognizer(forceConnectGesture)
-        
-        // 🔌 Auto force connect on launch (if not connected)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            if !iHealthService.shared.isConnected {
-                print("\n⚡ [HomeVC] Not connected detected, starting auto-connect workflow...")
-                BluetoothConnectionHelper.fullConnectionWorkflow()
-            } else {
-                print("\n✅ [HomeVC] Device already connected")
-            }
-        }
     }
-    
-    #if DEBUG
-    @objc private func handleDebugTap() {
-        print("🧪 [HomeVC] Debug gesture triggered: Adding test data")
-        DebugHelper.addTestData()
-        
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
-    #endif
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         updateDateTime()
-        updateDeviceStatus()
-        
-        // 🔄 Reload data statistics each time it appears
-        #if DEBUG
-        DebugHelper.printSavedData()
-        #endif
+        updateAPIStatus()
     }
     
     // MARK: - Setup
@@ -283,19 +235,18 @@ class HomeViewController: UIViewController {
         view.addSubview(headerView)
         headerView.addSubview(titleLabel)
         headerView.addSubview(dateLabel)
-        headerView.addSubview(deviceStatusView)
         
-        deviceStatusView.addSubview(statusDot)
-        deviceStatusView.addSubview(statusLabel)
-        
-        // 🔵 Add prominent Bluetooth status panel
-        view.addSubview(bluetoothStatusPanel)
-        bluetoothStatusPanel.addSubview(pulseAnimationView)
-        bluetoothStatusPanel.addSubview(statusIndicatorView)
-        bluetoothStatusPanel.addSubview(bluetoothIconLabel)
-        bluetoothStatusPanel.addSubview(connectionStatusLabel)
-        bluetoothStatusPanel.addSubview(deviceNameLabel)
-        bluetoothStatusPanel.addSubview(connectionTimeLabel)
+        // AI Assistant Panel with wave animation
+        view.addSubview(aiAssistantPanel)
+        aiAssistantPanel.addSubview(waveContainer)
+        waveContainer.addSubview(waveCircle1)
+        waveContainer.addSubview(waveCircle2)
+        waveContainer.addSubview(waveCircle3)
+        waveContainer.addSubview(micButton)
+        aiAssistantPanel.addSubview(aiGreetingLabel)
+        aiAssistantPanel.addSubview(aiSubtitleLabel)
+        aiAssistantPanel.addSubview(apiStatusLabel)
+        aiAssistantPanel.addSubview(configureAPIButton)
         
         view.addSubview(buttonsContainer)
         buttonsContainer.addSubview(measureButton)
@@ -313,58 +264,22 @@ class HomeViewController: UIViewController {
         
         setupConstraints()
         setupActions()
-        setupBluetoothPanelGestures()
-    }
-    
-    // MARK: - 🔵 Bluetooth Panel Gestures
-    private func setupBluetoothPanelGestures() {
-        // Single tap: Show detailed status
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(showBluetoothDetails))
-        bluetoothStatusPanel.addGestureRecognizer(tapGesture)
-        
-        // Long press: Force connect
-        let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(forceLongPressConnect))
-        longPressGesture.minimumPressDuration = 1.0
-        bluetoothStatusPanel.addGestureRecognizer(longPressGesture)
-        
-        bluetoothStatusPanel.isUserInteractionEnabled = true
-    }
-    
-    @objc private func showBluetoothDetails() {
-        print("\n📊 [HomeVC] Showing detailed Bluetooth status")
-        BluetoothConnectionHelper.showDetailedStatus()
-        
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-    }
-    
-    @objc private func forceLongPressConnect(_ gesture: UILongPressGestureRecognizer) {
-        if gesture.state == .began {
-            print("\n🔧 [HomeVC] Long press triggered force connect")
-            BluetoothConnectionHelper.forceConnectToDevice()
-            
-            // Haptic feedback
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.warning)
-        }
     }
     
     private func setupConstraints() {
-        // Disable autoresizing mask
         headerView.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
-        deviceStatusView.translatesAutoresizingMaskIntoConstraints = false
-        statusDot.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        bluetoothStatusPanel.translatesAutoresizingMaskIntoConstraints = false
-        statusIndicatorView.translatesAutoresizingMaskIntoConstraints = false
-        pulseAnimationView.translatesAutoresizingMaskIntoConstraints = false
-        bluetoothIconLabel.translatesAutoresizingMaskIntoConstraints = false
-        connectionStatusLabel.translatesAutoresizingMaskIntoConstraints = false
-        deviceNameLabel.translatesAutoresizingMaskIntoConstraints = false
-        connectionTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+        aiAssistantPanel.translatesAutoresizingMaskIntoConstraints = false
+        waveContainer.translatesAutoresizingMaskIntoConstraints = false
+        waveCircle1.translatesAutoresizingMaskIntoConstraints = false
+        waveCircle2.translatesAutoresizingMaskIntoConstraints = false
+        waveCircle3.translatesAutoresizingMaskIntoConstraints = false
+        micButton.translatesAutoresizingMaskIntoConstraints = false
+        aiGreetingLabel.translatesAutoresizingMaskIntoConstraints = false
+        aiSubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        apiStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        configureAPIButton.translatesAutoresizingMaskIntoConstraints = false
         buttonsContainer.translatesAutoresizingMaskIntoConstraints = false
         measureButton.translatesAutoresizingMaskIntoConstraints = false
         historyButton.translatesAutoresizingMaskIntoConstraints = false
@@ -376,11 +291,10 @@ class HomeViewController: UIViewController {
         batteryLabel.translatesAutoresizingMaskIntoConstraints = false
         voiceButton.translatesAutoresizingMaskIntoConstraints = false
         
-        // 📱 Use adaptive padding based on screen size
         let padding: CGFloat = UIScreen.adaptivePadding
         let verticalSpacing: CGFloat = UIScreen.adaptiveVerticalSpacing
         let headerHeight: CGFloat = UIScreen.adaptiveSpacing(small: 80, regular: 100, large: 120)
-        let panelHeight: CGFloat = UIScreen.adaptiveSpacing(small: 160, regular: 200, large: 240)
+        let panelHeight: CGFloat = UIScreen.adaptiveSpacing(small: 220, regular: 260, large: 300)
         let buttonHeight: CGFloat = UIScreen.adaptiveSpacing(small: 200, regular: 250, large: 280)
         
         NSLayoutConstraint.activate([
@@ -396,62 +310,62 @@ class HomeViewController: UIViewController {
             dateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 5),
             dateLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
             
-            deviceStatusView.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            deviceStatusView.trailingAnchor.constraint(equalTo: headerView.trailingAnchor),
-            deviceStatusView.heightAnchor.constraint(equalToConstant: 48),
-            deviceStatusView.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+            // AI Assistant Panel
+            aiAssistantPanel.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: verticalSpacing),
+            aiAssistantPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
+            aiAssistantPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
+            aiAssistantPanel.heightAnchor.constraint(equalToConstant: panelHeight),
             
-            statusDot.leadingAnchor.constraint(equalTo: deviceStatusView.leadingAnchor, constant: 24),
-            statusDot.centerYAnchor.constraint(equalTo: deviceStatusView.centerYAnchor),
-            statusDot.widthAnchor.constraint(equalToConstant: 16),
-            statusDot.heightAnchor.constraint(equalToConstant: 16),
+            // Wave container (centered at top)
+            waveContainer.centerXAnchor.constraint(equalTo: aiAssistantPanel.centerXAnchor),
+            waveContainer.topAnchor.constraint(equalTo: aiAssistantPanel.topAnchor, constant: 20),
+            waveContainer.widthAnchor.constraint(equalToConstant: 100),
+            waveContainer.heightAnchor.constraint(equalToConstant: 100),
             
-            statusLabel.leadingAnchor.constraint(equalTo: statusDot.trailingAnchor, constant: 10),
-            statusLabel.trailingAnchor.constraint(equalTo: deviceStatusView.trailingAnchor, constant: -24),
-            statusLabel.centerYAnchor.constraint(equalTo: deviceStatusView.centerYAnchor),
+            // Wave circles (outer to inner)
+            waveCircle1.centerXAnchor.constraint(equalTo: waveContainer.centerXAnchor),
+            waveCircle1.centerYAnchor.constraint(equalTo: waveContainer.centerYAnchor),
+            waveCircle1.widthAnchor.constraint(equalToConstant: 100),
+            waveCircle1.heightAnchor.constraint(equalToConstant: 100),
             
-            // 🔵 Bluetooth status panel (below header)
-            bluetoothStatusPanel.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: verticalSpacing),
-            bluetoothStatusPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
-            bluetoothStatusPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            bluetoothStatusPanel.heightAnchor.constraint(equalToConstant: panelHeight),
+            waveCircle2.centerXAnchor.constraint(equalTo: waveContainer.centerXAnchor),
+            waveCircle2.centerYAnchor.constraint(equalTo: waveContainer.centerYAnchor),
+            waveCircle2.widthAnchor.constraint(equalToConstant: 80),
+            waveCircle2.heightAnchor.constraint(equalToConstant: 80),
             
-            // Status indicator (center dot)
-            statusIndicatorView.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
-            statusIndicatorView.topAnchor.constraint(equalTo: bluetoothStatusPanel.topAnchor, constant: 20),
-            statusIndicatorView.widthAnchor.constraint(equalToConstant: 24),
-            statusIndicatorView.heightAnchor.constraint(equalToConstant: 24),
+            waveCircle3.centerXAnchor.constraint(equalTo: waveContainer.centerXAnchor),
+            waveCircle3.centerYAnchor.constraint(equalTo: waveContainer.centerYAnchor),
+            waveCircle3.widthAnchor.constraint(equalToConstant: 60),
+            waveCircle3.heightAnchor.constraint(equalToConstant: 60),
             
-            // Pulse animation
-            pulseAnimationView.centerXAnchor.constraint(equalTo: statusIndicatorView.centerXAnchor),
-            pulseAnimationView.centerYAnchor.constraint(equalTo: statusIndicatorView.centerYAnchor),
-            pulseAnimationView.widthAnchor.constraint(equalToConstant: 30),
-            pulseAnimationView.heightAnchor.constraint(equalToConstant: 30),
+            // Mic button (center)
+            micButton.centerXAnchor.constraint(equalTo: waveContainer.centerXAnchor),
+            micButton.centerYAnchor.constraint(equalTo: waveContainer.centerYAnchor),
+            micButton.widthAnchor.constraint(equalToConstant: 70),
+            micButton.heightAnchor.constraint(equalToConstant: 70),
             
-            // Bluetooth icon
-            bluetoothIconLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
-            bluetoothIconLabel.topAnchor.constraint(equalTo: statusIndicatorView.bottomAnchor, constant: 10),
+            // Greeting label
+            aiGreetingLabel.centerXAnchor.constraint(equalTo: aiAssistantPanel.centerXAnchor),
+            aiGreetingLabel.topAnchor.constraint(equalTo: waveContainer.bottomAnchor, constant: 16),
+            aiGreetingLabel.leadingAnchor.constraint(equalTo: aiAssistantPanel.leadingAnchor, constant: 20),
+            aiGreetingLabel.trailingAnchor.constraint(equalTo: aiAssistantPanel.trailingAnchor, constant: -20),
             
-            // Connection status text
-            connectionStatusLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
-            connectionStatusLabel.topAnchor.constraint(equalTo: bluetoothIconLabel.bottomAnchor, constant: 5),
-            connectionStatusLabel.leadingAnchor.constraint(equalTo: bluetoothStatusPanel.leadingAnchor, constant: 20),
-            connectionStatusLabel.trailingAnchor.constraint(equalTo: bluetoothStatusPanel.trailingAnchor, constant: -20),
+            // Subtitle label
+            aiSubtitleLabel.centerXAnchor.constraint(equalTo: aiAssistantPanel.centerXAnchor),
+            aiSubtitleLabel.topAnchor.constraint(equalTo: aiGreetingLabel.bottomAnchor, constant: 8),
+            aiSubtitleLabel.leadingAnchor.constraint(equalTo: aiAssistantPanel.leadingAnchor, constant: 20),
+            aiSubtitleLabel.trailingAnchor.constraint(equalTo: aiAssistantPanel.trailingAnchor, constant: -20),
             
-            // 设备名称
-            deviceNameLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
-            deviceNameLabel.topAnchor.constraint(equalTo: connectionStatusLabel.bottomAnchor, constant: 5),
-            deviceNameLabel.leadingAnchor.constraint(equalTo: bluetoothStatusPanel.leadingAnchor, constant: 20),
-            deviceNameLabel.trailingAnchor.constraint(equalTo: bluetoothStatusPanel.trailingAnchor, constant: -20),
+            // API status
+            apiStatusLabel.centerXAnchor.constraint(equalTo: aiAssistantPanel.centerXAnchor),
+            apiStatusLabel.topAnchor.constraint(equalTo: aiSubtitleLabel.bottomAnchor, constant: 12),
             
-            // Connection time
-            connectionTimeLabel.centerXAnchor.constraint(equalTo: bluetoothStatusPanel.centerXAnchor),
-            connectionTimeLabel.topAnchor.constraint(equalTo: deviceNameLabel.bottomAnchor, constant: 5),
-            connectionTimeLabel.leadingAnchor.constraint(equalTo: bluetoothStatusPanel.leadingAnchor, constant: 20),
-            connectionTimeLabel.trailingAnchor.constraint(equalTo: bluetoothStatusPanel.trailingAnchor, constant: -20),
+            // Configure button
+            configureAPIButton.centerXAnchor.constraint(equalTo: aiAssistantPanel.centerXAnchor),
+            configureAPIButton.topAnchor.constraint(equalTo: apiStatusLabel.bottomAnchor, constant: 4),
             
-            // Buttons Container (adjusted position, moved below Bluetooth panel)
-            buttonsContainer.topAnchor.constraint(equalTo: bluetoothStatusPanel.bottomAnchor, constant: verticalSpacing),
+            // Buttons Container
+            buttonsContainer.topAnchor.constraint(equalTo: aiAssistantPanel.bottomAnchor, constant: verticalSpacing),
             buttonsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding + UIScreen.adaptiveSpacing(small: 20, regular: 40, large: 60)),
             buttonsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -(padding + UIScreen.adaptiveSpacing(small: 20, regular: 40, large: 60))),
             buttonsContainer.bottomAnchor.constraint(equalTo: statusBar.topAnchor, constant: -verticalSpacing),
@@ -502,6 +416,8 @@ class HomeViewController: UIViewController {
         measureButton.addTarget(self, action: #selector(measureTapped), for: .touchUpInside)
         historyButton.addTarget(self, action: #selector(historyTapped), for: .touchUpInside)
         voiceButton.addTarget(self, action: #selector(voiceToggled), for: .touchUpInside)
+        micButton.addTarget(self, action: #selector(micButtonTapped), for: .touchUpInside)
+        configureAPIButton.addTarget(self, action: #selector(configureAPITapped), for: .touchUpInside)
     }
     
     private func setupNotifications() {
@@ -509,20 +425,6 @@ class HomeViewController: UIViewController {
             self,
             selector: #selector(measurementCompleted(_:)),
             name: .measurementCompleted,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(deviceConnectionChanged),
-            name: .deviceConnected,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(deviceConnectionChanged),
-            name: .deviceDisconnected,
             object: nil
         )
     }
@@ -535,179 +437,72 @@ class HomeViewController: UIViewController {
         dateLabel.text = formatter.string(from: Date())
     }
     
-    private func updateDeviceStatus() {
-        // 🔍 Get actual connection status from iHealthService
-        let isConnected = iHealthService.shared.isConnected
-        let isScanning = iHealthService.shared.isScanning
-        
-        print("🔌 [HomeVC] Update device status: \(isConnected ? "Connected" : "Not Connected"), Scanning: \(isScanning)")
-        
-        // Update old status bar
-        if isConnected {
-            statusDot.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
-            statusLabel.text = "Connected"
-            statusLabel.textColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
+    private func updateAPIStatus() {
+        if OpenAIService.shared.hasAPIKey() {
+            apiStatusLabel.text = "AI Ready"
+            apiStatusLabel.textColor = UIColor(red: 0.2, green: 0.7, blue: 0.4, alpha: 1.0)
+            micButton.isEnabled = true
+            micButton.alpha = 1.0
+            configureAPIButton.setTitle("Settings", for: .normal)
         } else {
-            statusDot.backgroundColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-            statusLabel.text = "Not Connected"
-            statusLabel.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
-        }
-        
-        // 🔵 Update new Bluetooth status panel
-        updateBluetoothPanel(isConnected: isConnected, isScanning: isScanning)
-    }
-    
-    // MARK: - 🔵 Update Bluetooth Status Panel
-    private func updateBluetoothPanel(isConnected: Bool, isScanning: Bool) {
-        if isConnected {
-            // ✅ Connected status
-            connectionStatusLabel.text = "Connected"
-            connectionStatusLabel.textColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
-            bluetoothIconLabel.text = "✅"
-            
-            // Green indicator
-            statusIndicatorView.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
-            pulseAnimationView.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.3)
-            
-            // Device name
-            if let deviceName = iHealthService.shared.connectedDeviceName {
-                deviceNameLabel.text = "Device: \(deviceName)"
-                deviceNameLabel.textColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
-            } else {
-                deviceNameLabel.text = "iHealth KN-550BT"
-                deviceNameLabel.textColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
-            }
-            
-            // Panel style
-            bluetoothStatusPanel.backgroundColor = UIColor(red: 0.92, green: 0.99, blue: 0.95, alpha: 1.0)
-            bluetoothStatusPanel.layer.borderColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 0.5).cgColor
-            
-            // Start pulse animation
-            startPulseAnimation()
-            
-            // Start timer
-            if connectionStartTime == nil {
-                connectionStartTime = Date()
-            }
-            startConnectionTimeUpdate()
-            
-        } else if isScanning {
-            // 🔍 Scanning status
-            connectionStatusLabel.text = "Scanning for devices..."
-            connectionStatusLabel.textColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 1.0)
-            bluetoothIconLabel.text = "🔍"
-            
-            // Blue indicator
-            statusIndicatorView.backgroundColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 1.0)
-            pulseAnimationView.backgroundColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 0.3)
-            
-            deviceNameLabel.text = "Looking for iHealth KN-550BT\nPlease ensure device is powered on and in range"
-            deviceNameLabel.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
-            
-            connectionTimeLabel.text = ""
-            
-            // Panel style
-            bluetoothStatusPanel.backgroundColor = UIColor(red: 0.92, green: 0.96, blue: 1.0, alpha: 1.0)
-            bluetoothStatusPanel.layer.borderColor = UIColor(red: 0, green: 0.48, blue: 1.0, alpha: 0.5).cgColor
-            
-            // Start pulse animation
-            startPulseAnimation()
-            
-        } else {
-            // ❌ Not connected status
-            connectionStatusLabel.text = "Not Connected"
-            connectionStatusLabel.textColor = UIColor(red: 0.7, green: 0.7, blue: 0.7, alpha: 1.0)
-            bluetoothIconLabel.text = "📡"
-            
-            // Gray indicator
-            statusIndicatorView.backgroundColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 1.0)
-            pulseAnimationView.backgroundColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 0.3)
-            
-            deviceNameLabel.text = "Tap to view details\nLong press for 1 second to force connect"
-            deviceNameLabel.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
-            
-            connectionTimeLabel.text = ""
-            
-            // Panel style
-            bluetoothStatusPanel.backgroundColor = UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
-            bluetoothStatusPanel.layer.borderColor = UIColor(red: 0.8, green: 0.8, blue: 0.82, alpha: 1.0).cgColor
-            
-            // Stop animation
-            stopPulseAnimation()
-            
-            // Reset timer
-            connectionStartTime = nil
-            stopConnectionTimeUpdate()
+            apiStatusLabel.text = "API Key Required"
+            apiStatusLabel.textColor = UIColor(red: 0.9, green: 0.5, blue: 0.2, alpha: 1.0)
+            micButton.isEnabled = true // Still allow tap to prompt setup
+            micButton.alpha = 0.7
+            configureAPIButton.setTitle("Configure API Key", for: .normal)
         }
     }
     
-    // MARK: - 🎬 Pulse Animation
-    private func startPulseAnimation() {
-        pulseAnimationView.layer.removeAllAnimations()
+    // MARK: - Wave Animation
+    private func startWaveAnimation() {
+        stopWaveAnimation()
         
-        UIView.animate(withDuration: 1.5, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut], animations: {
-            self.pulseAnimationView.alpha = 0.8
-            self.pulseAnimationView.transform = CGAffineTransform(scaleX: 1.5, y: 1.5)
-        })
+        // Animate waves
+        UIView.animate(withDuration: 0.8, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut]) {
+            self.waveCircle1.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+            self.waveCircle1.alpha = 0.3
+        }
+        
+        UIView.animate(withDuration: 0.6, delay: 0.1, options: [.repeat, .autoreverse, .curveEaseInOut]) {
+            self.waveCircle2.transform = CGAffineTransform(scaleX: 1.15, y: 1.15)
+            self.waveCircle2.alpha = 0.5
+        }
+        
+        UIView.animate(withDuration: 0.4, delay: 0.2, options: [.repeat, .autoreverse, .curveEaseInOut]) {
+            self.waveCircle3.transform = CGAffineTransform(scaleX: 1.1, y: 1.1)
+            self.waveCircle3.alpha = 0.7
+        }
     }
     
-    private func stopPulseAnimation() {
-        pulseAnimationView.layer.removeAllAnimations()
+    private func stopWaveAnimation() {
+        waveCircle1.layer.removeAllAnimations()
+        waveCircle2.layer.removeAllAnimations()
+        waveCircle3.layer.removeAllAnimations()
+        
         UIView.animate(withDuration: 0.3) {
-            self.pulseAnimationView.alpha = 0
-            self.pulseAnimationView.transform = .identity
+            self.waveCircle1.transform = .identity
+            self.waveCircle2.transform = .identity
+            self.waveCircle3.transform = .identity
+            self.waveCircle1.alpha = 1.0
+            self.waveCircle2.alpha = 1.0
+            self.waveCircle3.alpha = 1.0
         }
-    }
-    
-    // MARK: - ⏱️ Connection Time Update
-    private func startConnectionTimeUpdate() {
-        stopConnectionTimeUpdate()
-        connectionTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateConnectionTime()
-        }
-        updateConnectionTime()
-    }
-    
-    private func stopConnectionTimeUpdate() {
-        connectionTimeTimer?.invalidate()
-        connectionTimeTimer = nil
-    }
-    
-    private func updateConnectionTime() {
-        guard let startTime = connectionStartTime else {
-            connectionTimeLabel.text = ""
-            return
-        }
-        
-        let elapsed = Date().timeIntervalSince(startTime)
-        let minutes = Int(elapsed) / 60
-        let seconds = Int(elapsed) % 60
-        
-        if minutes > 0 {
-            connectionTimeLabel.text = "Connected: \(minutes) min \(seconds) sec"
-        } else {
-            connectionTimeLabel.text = "Connected: \(seconds) sec"
-        }
-        connectionTimeLabel.textColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
     }
     
     // MARK: - Actions
     @objc private func measureTapped() {
         tabBarController?.selectedIndex = 1
-        // Add haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
     
     @objc private func historyTapped() {
         tabBarController?.selectedIndex = 2
-        // Add haptic feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
     }
     
     @objc private func voiceToggled() {
-        // Toggle voice service
         VoiceService.shared.isEnabled.toggle()
         
         if VoiceService.shared.isEnabled {
@@ -722,73 +517,173 @@ class HomeViewController: UIViewController {
     }
     
     @objc private func measurementCompleted(_ notification: Notification) {
-        // Home doesn't need to show detailed results, just update device status
-        updateDeviceStatus()
+        // Update UI if needed
     }
     
-    @objc private func deviceConnectionChanged() {
-        print("📡 [HomeVC] Device connection status change notification received")
-        updateDeviceStatus()
-    }
-    
-    // MARK: - 🔧 Force Connect Bluetooth Device
-    @objc private func forceConnect() {
-        print("\n🔧 [HomeVC] User triggered force connect")
+    // MARK: - AI Voice Assistant Actions
+    @objc private func micButtonTapped() {
+        guard OpenAIService.shared.hasAPIKey() else {
+            configureAPITapped()
+            return
+        }
         
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.warning)
-        
-        // Execute full connection workflow
-        BluetoothConnectionHelper.fullConnectionWorkflow()
-    }
-    
-    // MARK: - 🔍 Bluetooth Connection Checker
-    @objc private func checkBluetoothConnection() {
-        print("\n🔍 [HomeVC] ========== Bluetooth Connection Check ==========")
-        
-        let service = iHealthService.shared
-        print("📊 [HomeVC] Service status:")
-        print("   • Initialized: \(service.isInitialized)")
-        print("   • Connected: \(service.isConnected)")
-        print("   • Scanning: \(service.isScanning)")
-        
-        if service.isConnected {
-            print("✅ [HomeVC] Bluetooth connected, ready to measure")
-        } else if service.isInitialized {
-            print("⚠️ [HomeVC] Service initialized but no device connected")
-            print("💡 [HomeVC] Suggestion: Start Bluetooth scanning")
-            
-            // Auto start scanning
-            service.scanDevices { success, message in
-                print(success ? "✅ [HomeVC] Scan started successfully" : "❌ [HomeVC] Scan failed: \(message ?? "")")
-            }
+        if isRecording {
+            stopRecording()
         } else {
-            print("❌ [HomeVC] Service not initialized")
-            print("💡 [HomeVC] Suggestion: Initialize iHealthService")
+            startRecording()
+        }
+    }
+    
+    private func startRecording() {
+        isRecording = true
+        
+        // Update UI - darker pink when recording
+        micButton.backgroundColor = UIColor(red: 0.7, green: 0, blue: 0.35, alpha: 1.0)
+        aiGreetingLabel.text = "Listening..."
+        aiSubtitleLabel.text = "Tap again to stop"
+        
+        // Start wave animation
+        startWaveAnimation()
+        
+        VoiceService.shared.speak("I'm listening")
+        
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        
+        // Start recording
+        AudioRecorderService.shared.startRecording { [weak self] audioURL in
+            guard let audioURL = audioURL else {
+                DispatchQueue.main.async {
+                    self?.resetMicButton()
+                    VoiceService.shared.speak("Sorry, I couldn't record. Please try again.")
+                }
+                return
+            }
             
-            // Auto initialize
-            service.initialize { success in
-                print(success ? "✅ [HomeVC] Initialization successful" : "❌ [HomeVC] Initialization failed")
-                if success {
-                    service.scanDevices { scanSuccess, message in
-                        print(scanSuccess ? "✅ [HomeVC] Scan started successfully" : "❌ [HomeVC] Scan failed: \(message ?? "")")
-                    }
+            DispatchQueue.main.async {
+                self?.processRecording(audioURL: audioURL)
+            }
+        }
+    }
+    
+    private func stopRecording() {
+        isRecording = false
+        
+        // Update UI - gray while processing
+        micButton.backgroundColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
+        aiGreetingLabel.text = "Processing..."
+        aiSubtitleLabel.text = "Please wait"
+        
+        AudioRecorderService.shared.stopRecording()
+    }
+    
+    private func processRecording(audioURL: URL) {
+        stopWaveAnimation()
+        
+        // Transcribe with Whisper
+        OpenAIService.shared.transcribeAudio(audioURL: audioURL) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let text):
+                    print("🎤 [HomeVC] Transcribed: \(text)")
+                    self?.askAI(question: text)
+                    
+                case .failure(let error):
+                    print("❌ [HomeVC] Transcription error: \(error)")
+                    self?.resetMicButton()
+                    VoiceService.shared.speak("Sorry, I couldn't understand. Please try again.")
+                }
+                
+                AudioRecorderService.shared.deleteRecording(at: audioURL)
+            }
+        }
+    }
+    
+    private func askAI(question: String) {
+        aiSubtitleLabel.text = "You: \"\(question)\""
+        
+        let recentReadings = BloodPressureReading.load().prefix(5).map { $0 }
+        
+        OpenAIService.shared.chatCompletion(
+            userMessage: question,
+            recentReadings: Array(recentReadings)
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.resetMicButton()
+                
+                switch result {
+                case .success(let response):
+                    print("🤖 [HomeVC] AI Response: \(response)")
+                    self?.aiGreetingLabel.text = response
+                    self?.aiSubtitleLabel.text = "Tap to ask another question"
+                    VoiceService.shared.speak(response)
+                    
+                case .failure(let error):
+                    print("❌ [HomeVC] AI error: \(error)")
+                    self?.aiGreetingLabel.text = "How can I help you today?"
+                    VoiceService.shared.speak("Sorry, I had trouble answering. Please try again.")
                 }
             }
         }
+    }
+    
+    private func resetMicButton() {
+        isRecording = false
+        stopWaveAnimation()
+        micButton.setTitle("", for: .normal)
+        micButton.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 1.0)
         
-        print("🔍 [HomeVC] ========================================\n")
+        if aiGreetingLabel.text == "Listening..." || aiGreetingLabel.text == "Processing..." {
+            aiGreetingLabel.text = "How can I help you today?"
+            aiSubtitleLabel.text = "Tap to start talking"
+        }
+    }
+    
+    @objc private func configureAPITapped() {
+        let alert = UIAlertController(
+            title: "OpenAI API Key",
+            message: "Enter your API key to enable AI assistant.\n\nGet your key at: platform.openai.com",
+            preferredStyle: .alert
+        )
         
-        // Update status display
-        updateDeviceStatus()
+        alert.addTextField { textField in
+            textField.placeholder = "sk-..."
+            textField.isSecureTextEntry = true
+            textField.autocapitalizationType = .none
+            textField.autocorrectionType = .no
+            
+            if OpenAIService.shared.hasAPIKey() {
+                textField.text = OpenAIService.shared.getAPIKey()
+            }
+        }
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        alert.addAction(UIAlertAction(title: "Save", style: .default) { [weak self] _ in
+            guard let apiKey = alert.textFields?.first?.text, !apiKey.isEmpty else { return }
+            
+            OpenAIService.shared.setAPIKey(apiKey)
+            self?.updateAPIStatus()
+            
+            VoiceService.shared.speak("API key saved. I'm ready to help!")
+            
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+        })
+        
+        if OpenAIService.shared.hasAPIKey() {
+            alert.addAction(UIAlertAction(title: "Clear Key", style: .destructive) { [weak self] _ in
+                OpenAIService.shared.clearAPIKey()
+                self?.updateAPIStatus()
+            })
+        }
+        
+        present(alert, animated: true)
     }
 }
 
 // MARK: - SwiftUI Preview
 #if DEBUG
-import SwiftUI
-
 struct HomeViewController_Previews: PreviewProvider {
     static var previews: some View {
         HomeViewControllerRepresentable()
@@ -801,8 +696,6 @@ struct HomeViewControllerRepresentable: UIViewControllerRepresentable {
         return HomeViewController()
     }
     
-    func updateUIViewController(_ uiViewController: HomeViewController, context: Context) {
-        // Update view controller (if needed)
-    }
+    func updateUIViewController(_ uiViewController: HomeViewController, context: Context) {}
 }
 #endif

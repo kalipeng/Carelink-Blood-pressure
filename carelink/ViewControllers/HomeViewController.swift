@@ -439,7 +439,7 @@ class HomeViewController: UIViewController {
     
     private func updateAPIStatus() {
         if OpenAIService.shared.hasAPIKey() {
-            apiStatusLabel.text = "AI Ready"
+            apiStatusLabel.text = OpenAIService.shared.hasOpenAIKey() ? "AI + Voice Ready" : "AI Ready"
             apiStatusLabel.textColor = UIColor(red: 0.2, green: 0.7, blue: 0.4, alpha: 1.0)
             micButton.isEnabled = true
             micButton.alpha = 1.0
@@ -641,28 +641,48 @@ class HomeViewController: UIViewController {
     
     @objc private func configureAPITapped() {
         let alert = UIAlertController(
-            title: "OpenAI API Key",
-            message: "Enter your API key to enable AI assistant.\n\nGet your key at: platform.openai.com",
+            title: "API Keys",
+            message: "Claude key (required): chat + read BP from camera.\nOpenAI key (optional): voice input.",
             preferredStyle: .alert
         )
         
+        // Claude (Anthropic) – required
         alert.addTextField { textField in
-            textField.placeholder = "sk-..."
+            textField.placeholder = "Claude API key (sk-ant-...)"
             textField.isSecureTextEntry = true
             textField.autocapitalizationType = .none
             textField.autocorrectionType = .no
-            
             if OpenAIService.shared.hasAPIKey() {
                 textField.text = OpenAIService.shared.getAPIKey()
+            }
+        }
+        
+        // OpenAI – optional, for voice
+        alert.addTextField { textField in
+            textField.placeholder = "OpenAI key (optional, for voice)"
+            textField.isSecureTextEntry = true
+            textField.autocapitalizationType = .none
+            textField.autocorrectionType = .no
+            if OpenAIService.shared.hasOpenAIKey() {
+                textField.text = OpenAIService.shared.getOpenAIKey()
             }
         }
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
         alert.addAction(UIAlertAction(title: "Save", style: .default) { [weak self] _ in
-            guard let apiKey = alert.textFields?.first?.text, !apiKey.isEmpty else { return }
+            let claudeKey = alert.textFields?[0].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let openaiKey = alert.textFields?[1].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             
-            OpenAIService.shared.setAPIKey(apiKey)
+            guard !claudeKey.isEmpty else {
+                VoiceService.shared.speak("Please enter your Claude API key.")
+                return
+            }
+            
+            OpenAIService.shared.setAPIKey(claudeKey)
+            if !openaiKey.isEmpty {
+                OpenAIService.shared.setOpenAIKey(openaiKey)
+            }
             self?.updateAPIStatus()
             
             VoiceService.shared.speak("API key saved. I'm ready to help!")
@@ -672,7 +692,7 @@ class HomeViewController: UIViewController {
         })
         
         if OpenAIService.shared.hasAPIKey() {
-            alert.addAction(UIAlertAction(title: "Clear Key", style: .destructive) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Clear Keys", style: .destructive) { [weak self] _ in
                 OpenAIService.shared.clearAPIKey()
                 self?.updateAPIStatus()
             })

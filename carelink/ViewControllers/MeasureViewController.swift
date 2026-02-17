@@ -656,7 +656,7 @@ class MeasureViewController: UIViewController {
     @objc private func captureReading() {
         // Check if API key is configured
         guard OpenAIService.shared.hasAPIKey() else {
-            VoiceService.shared.speak("Please configure your OpenAI API key first. Go to home screen and tap Settings.")
+            VoiceService.shared.speak("Please configure your Claude API key first. Go to home screen and tap Settings.")
             showAPIKeyAlert()
             return
         }
@@ -680,7 +680,7 @@ class MeasureViewController: UIViewController {
     private func showAPIKeyAlert() {
         let alert = UIAlertController(
             title: "API Key Required",
-            message: "Please configure your OpenAI API key to use the AI vision feature.\n\nGo to Home screen → Settings",
+            message: "Please configure your Claude (Anthropic) API key to use the AI vision feature.\n\nGo to Home screen → Settings",
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "Enter Manually Instead", style: .default) { [weak self] _ in

@@ -1,22 +1,30 @@
 //
 //  OpenAIService.swift
-//  HealthPad
+//  carelink
 //
-//  OpenAI API Integration Service
-//  - GPT-4 for conversational AI
-//  - GPT-4 Vision for blood pressure monitor screen analysis
+//  AI Service: Claude Opus (Anthropic) for chat + vision
+//  Optional: OpenAI Whisper for speech-to-text (voice input)
 //
 
 import Foundation
 import UIKit
 
-// MARK: - OpenAI Service
+// MARK: - AI Service (Claude Opus + optional Whisper)
 class OpenAIService {
     static let shared = OpenAIService()
     
-    private let chatEndpoint = "https://api.openai.com/v1/chat/completions"
-    private var apiKey: String {
-        // Try to get from UserDefaults first, fallback to hardcoded key
+    // Anthropic Claude API
+    private let anthropicEndpoint = "https://api.anthropic.com/v1/messages"
+    private let anthropicVersion = "2023-06-01"
+    private let claudeModel = "claude-opus-4-6"  // Claude Opus (Anthropic)
+    
+    // Claude API key (primary - for chat + vision)
+    private var anthropicApiKey: String {
+        return UserDefaults.standard.string(forKey: "anthropic_api_key") ?? ""
+    }
+    
+    // OpenAI key (optional - for Whisper voice input only)
+    private var openaiApiKey: String {
         return UserDefaults.standard.string(forKey: "openai_api_key") ?? ""
     }
     
@@ -24,24 +32,42 @@ class OpenAIService {
     
     // MARK: - API Key Management
     func setAPIKey(_ key: String) {
+        UserDefaults.standard.set(key, forKey: "anthropic_api_key")
+        print("✅ [Claude] API key saved")
+    }
+    
+    /// Optional: set OpenAI key for voice input (Whisper). Claude key is used for chat and vision.
+    func setOpenAIKey(_ key: String) {
         UserDefaults.standard.set(key, forKey: "openai_api_key")
-        print("✅ [OpenAI] API key saved")
+        print("✅ [Whisper] OpenAI key saved for voice input")
+    }
+    
+    /// Get OpenAI key (for optional voice input). Used only to pre-fill settings UI.
+    func getOpenAIKey() -> String {
+        return openaiApiKey
+    }
+    
+    /// Whether OpenAI key is set (voice input available).
+    func hasOpenAIKey() -> Bool {
+        return !openaiApiKey.isEmpty
     }
     
     func getAPIKey() -> String {
-        return apiKey
+        return anthropicApiKey
     }
     
     func hasAPIKey() -> Bool {
-        return !apiKey.isEmpty && apiKey != "YOUR_API_KEY_HERE"
+        let key = anthropicApiKey
+        return !key.isEmpty && key != "YOUR_API_KEY_HERE"
     }
     
     func clearAPIKey() {
+        UserDefaults.standard.removeObject(forKey: "anthropic_api_key")
         UserDefaults.standard.removeObject(forKey: "openai_api_key")
-        print("🗑️ [OpenAI] API key cleared")
+        print("🗑️ [Claude] API key cleared")
     }
     
-    // MARK: - Chat Completion (GPT-4)
+    // MARK: - Chat Completion (Claude Opus)
     func chatCompletion(
         userMessage: String,
         systemPrompt: String? = nil,
@@ -49,11 +75,10 @@ class OpenAIService {
         completion: @escaping (Result<String, Error>) -> Void
     ) {
         guard hasAPIKey() else {
-            completion(.failure(NSError(domain: "OpenAI", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
+            completion(.failure(NSError(domain: "Claude", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
             return
         }
         
-        // Build system prompt with context
         var fullSystemPrompt = systemPrompt ?? """
         You are a helpful health assistant for elderly users. You help them understand their blood pressure readings and provide gentle health guidance.
         
@@ -65,7 +90,6 @@ class OpenAIService {
         - Never diagnose or prescribe medication
         """
         
-        // Add recent readings context
         if !recentReadings.isEmpty {
             let readingsContext = recentReadings.prefix(5).map { reading in
                 "\(reading.systolic)/\(reading.diastolic) mmHg, Pulse: \(reading.pulse) bpm"
@@ -73,26 +97,23 @@ class OpenAIService {
             fullSystemPrompt += "\n\nRecent blood pressure readings: \(readingsContext)"
         }
         
-        // Build request
-        let messages: [[String: String]] = [
-            ["role": "system", "content": fullSystemPrompt],
-            ["role": "user", "content": userMessage]
-        ]
-        
+        // Claude Messages API format
         let requestBody: [String: Any] = [
-            "model": "gpt-4",
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 150
+            "model": claudeModel,
+            "max_tokens": 256,
+            "system": fullSystemPrompt,
+            "messages": [
+                ["role": "user", "content": userMessage]
+            ]
         ]
         
-        makeRequest(endpoint: chatEndpoint, body: requestBody) { result in
+        makeClaudeRequest(body: requestBody) { result in
             switch result {
             case .success(let data):
-                if let response = self.parseChatResponse(data) {
+                if let response = self.parseClaudeResponse(data) {
                     completion(.success(response))
                 } else {
-                    completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
+                    completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
                 }
             case .failure(let error):
                 completion(.failure(error))
@@ -100,171 +121,128 @@ class OpenAIService {
         }
     }
     
-    // MARK: - Whisper API (Speech-to-Text)
+    // MARK: - Whisper API (Speech-to-Text) – requires OpenAI key (Anthropic does not provide speech-to-text)
     func transcribeAudio(
         audioURL: URL,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        guard hasAPIKey() else {
-            completion(.failure(NSError(domain: "OpenAI", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
+        guard !openaiApiKey.isEmpty else {
+            completion(.failure(NSError(domain: "Whisper", code: 401, userInfo: [NSLocalizedDescriptionKey: "Voice input requires an OpenAI API key (Settings). Claude is used for chat and vision only."])))
             return
         }
+        let key = openaiApiKey
         
-        // Read audio file
         guard let audioData = try? Data(contentsOf: audioURL) else {
-            completion(.failure(NSError(domain: "OpenAI", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to read audio file"])))
+            completion(.failure(NSError(domain: "Whisper", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to read audio file"])))
             return
         }
         
-        // Create multipart form data
         let boundary = "Boundary-\(UUID().uuidString)"
         var body = Data()
         
-        // Add file data
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
         body.append(audioData)
         body.append("\r\n".data(using: .utf8)!)
-        
-        // Add model parameter
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n".data(using: .utf8)!)
         body.append("whisper-1\r\n".data(using: .utf8)!)
-        
-        // Add language parameter (English)
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
         body.append("en\r\n".data(using: .utf8)!)
-        
-        // End boundary
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         
-        // Create request
         let whisperEndpoint = "https://api.openai.com/v1/audio/transcriptions"
         guard let url = URL(string: whisperEndpoint) else {
-            completion(.failure(NSError(domain: "OpenAI", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+            completion(.failure(NSError(domain: "Whisper", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
             return
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
         request.timeoutInterval = 30
         
-        print("🎤 [OpenAI] Sending audio to Whisper API...")
-        
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("❌ [OpenAI] Whisper request failed: \(error)")
                 completion(.failure(error))
                 return
             }
-            
             guard let data = data else {
-                completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                completion(.failure(NSError(domain: "Whisper", code: 500, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
                 return
             }
-            
-            // Parse response
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let text = json["text"] as? String {
-                    print("✅ [OpenAI] Whisper transcription: \(text)")
                     completion(.success(text))
+                } else if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let err = json["error"] as? [String: Any],
+                          let message = err["message"] as? String {
+                    completion(.failure(NSError(domain: "Whisper", code: 500, userInfo: [NSLocalizedDescriptionKey: message])))
                 } else {
-                    // Try to get error message
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let error = json["error"] as? [String: Any],
-                       let message = error["message"] as? String {
-                        print("❌ [OpenAI] Whisper API error: \(message)")
-                        completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: message])))
-                    } else {
-                        completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
-                    }
+                    completion(.failure(NSError(domain: "Whisper", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
                 }
             } catch {
-                print("❌ [OpenAI] Failed to parse Whisper response: \(error)")
                 completion(.failure(error))
             }
         }.resume()
     }
     
-    // MARK: - Vision API (GPT-4 Vision)
-    
-    /// AI Coach: Analyze posture and cuff placement, provide real-time guidance
+    // MARK: - Vision (Claude) – measurement guidance
     func analyzeMeasurementGuidance(
         image: UIImage,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
         guard hasAPIKey() else {
-            completion(.failure(NSError(domain: "OpenAI", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
+            completion(.failure(NSError(domain: "Claude", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
             return
         }
         
-        // Convert image to base64
         guard let imageData = image.jpegData(compressionQuality: 0.6) else {
-            completion(.failure(NSError(domain: "OpenAI", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])))
+            completion(.failure(NSError(domain: "Claude", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])))
             return
         }
         let base64Image = imageData.base64EncodedString()
         
-        // Build guidance request
-        let messages: [[String: Any]] = [
+        let systemPrompt = """
+        You are a caring health coach helping elderly people measure their blood pressure correctly.
+        Your job is to check: posture, cuff position, arm at heart level, and if they look relaxed.
+        Respond with ONE short, friendly sentence (max 10 words) with the MOST IMPORTANT guidance.
+        Be warm and elderly-friendly.
+        """
+        
+        let userContent: [[String: Any]] = [
+            ["type": "text", "text": "Am I measuring my blood pressure correctly? Give me ONE tip."],
             [
-                "role": "system",
-                "content": """
-You are a caring health coach helping elderly people measure their blood pressure correctly.
-
-Your job is to:
-1. Check if they are sitting properly (back straight, feet flat on floor)
-2. Check if the blood pressure cuff is on the correct arm position (upper arm, 1 inch above elbow)
-3. Check if their arm is at heart level and resting on a surface
-4. Check if they look relaxed (not talking, not moving)
-
-Respond with ONE short, friendly sentence (max 10 words) with the MOST IMPORTANT guidance:
-- If posture is wrong: "Sit up straight with feet flat on floor."
-- If cuff position is wrong: "Place cuff on upper arm, one inch above elbow."
-- If arm is too high/low: "Rest your arm at heart level."
-- If they're moving: "Stay still and relax for accurate reading."
-- If everything looks good: "Perfect! Keep this position and stay relaxed."
-
-Be warm, encouraging, and elderly-friendly. Keep it SIMPLE.
-"""
-            ],
-            [
-                "role": "user",
-                "content": [
-                    [
-                        "type": "text",
-                        "text": "Am I measuring my blood pressure correctly? Give me ONE tip."
-                    ],
-                    [
-                        "type": "image_url",
-                        "image_url": [
-                            "url": "data:image/jpeg;base64,\(base64Image)"
-                        ]
-                    ]
+                "type": "image",
+                "source": [
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": base64Image
                 ]
             ]
         ]
         
         let requestBody: [String: Any] = [
-            "model": "gpt-4o",
-            "messages": messages,
-            "max_tokens": 50,
-            "temperature": 0.7
+            "model": claudeModel,
+            "max_tokens": 64,
+            "system": systemPrompt,
+            "messages": [
+                ["role": "user", "content": userContent]
+            ]
         ]
         
-        makeRequest(endpoint: chatEndpoint, body: requestBody) { result in
+        makeClaudeRequest(body: requestBody) { result in
             switch result {
             case .success(let data):
-                if let guidance = self.parseChatResponse(data) {
+                if let guidance = self.parseClaudeResponse(data) {
                     completion(.success(guidance))
                 } else {
-                    completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
+                    completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
                 }
             case .failure(let error):
                 completion(.failure(error))
@@ -272,91 +250,70 @@ Be warm, encouraging, and elderly-friendly. Keep it SIMPLE.
         }
     }
     
-    /// Read numbers from blood pressure monitor screen
+    // MARK: - Vision (Claude) – read BP monitor numbers
     func analyzeBloodPressureImage(
         image: UIImage,
         completion: @escaping (Result<BloodPressureReading?, Error>) -> Void
     ) {
         guard hasAPIKey() else {
-            completion(.failure(NSError(domain: "OpenAI", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
+            completion(.failure(NSError(domain: "Claude", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key not configured"])))
             return
         }
         
-        // Convert image to base64 with high quality
         guard let imageData = image.jpegData(compressionQuality: 0.95) else {
-            completion(.failure(NSError(domain: "OpenAI", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])))
+            completion(.failure(NSError(domain: "Claude", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])))
             return
         }
         let base64Image = imageData.base64EncodedString()
         
-        // Build vision request with high-accuracy prompt
-        let messages: [[String: Any]] = [
+        let systemPrompt = """
+        You are a precise medical device reader. Your ONLY task is to read the EXACT numbers displayed on a blood pressure monitor screen.
+        
+        CRITICAL ACCURACY RULES:
+        1. Read EACH DIGIT carefully: 0-9. Watch for 1 vs 7, 6 vs 8, 3 vs 8.
+        2. TOP/LARGEST number = Systolic (SYS), typically 90-180.
+        3. MIDDLE = Diastolic (DIA), typically 60-110.
+        4. BOTTOM/heart icon = Pulse, typically 50-100.
+        5. Systolic MUST be greater than Diastolic; if not, you swapped them.
+        
+        Respond ONLY with this exact JSON, no other text:
+        {"systolic": NUMBER, "diastolic": NUMBER, "pulse": NUMBER}
+        If truly unreadable: {"error": "Cannot read values"}
+        """
+        
+        let userContent: [[String: Any]] = [
+            ["type": "text", "text": "Read the EXACT numbers on this blood pressure monitor. Return ONLY the JSON with systolic, diastolic, and pulse."],
             [
-                "role": "system",
-                "content": """
-                You are a precise medical device reader. Your ONLY task is to read the EXACT numbers displayed on a blood pressure monitor screen.
-
-                CRITICAL ACCURACY RULES:
-                1. Read EACH DIGIT individually and carefully: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-                2. Pay attention to similar-looking digits: 1 vs 7, 6 vs 8, 3 vs 8, 5 vs 6
-                3. On 7-segment displays: 1 is two vertical lines on the right, 7 has a top bar
-                4. Double-check each number before responding
-                5. If a digit is unclear, look at the segment pattern carefully
-
-                DISPLAY LAYOUT (most monitors):
-                - TOP/LARGEST number = Systolic (SYS) - typically 90-180
-                - MIDDLE number = Diastolic (DIA) - typically 60-110
-                - BOTTOM/SMALLEST number with heart ♥ icon = Pulse - typically 50-100
-
-                VALIDATION:
-                - Systolic MUST be greater than Diastolic
-                - If systolic < diastolic, you've swapped them - fix it
-                - Typical readings: 120/80 pulse 72, 135/85 pulse 68, etc.
-
-                OUTPUT FORMAT (JSON only, no other text):
-                {"systolic": NUMBER, "diastolic": NUMBER, "pulse": NUMBER}
-                
-                If truly unreadable: {"error": "Cannot read values"}
-                """
-            ],
-            [
-                "role": "user",
-                "content": [
-                    [
-                        "type": "text",
-                        "text": "Read the EXACT numbers on this blood pressure monitor. Check each digit carefully - accuracy is critical. What are the systolic, diastolic, and pulse values shown?"
-                    ],
-                    [
-                        "type": "image_url",
-                        "image_url": [
-                            "url": "data:image/jpeg;base64,\(base64Image)",
-                            "detail": "high"
-                        ]
-                    ]
+                "type": "image",
+                "source": [
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": base64Image
                 ]
             ]
         ]
         
         let requestBody: [String: Any] = [
-            "model": "gpt-4o",
-            "messages": messages,
+            "model": claudeModel,
             "max_tokens": 150,
-            "temperature": 0.0  // Zero temperature for maximum accuracy/consistency
+            "system": systemPrompt,
+            "messages": [
+                ["role": "user", "content": userContent]
+            ]
         ]
         
-        makeRequest(endpoint: chatEndpoint, body: requestBody) { result in
+        makeClaudeRequest(body: requestBody) { result in
             switch result {
             case .success(let data):
-                if let jsonResponse = self.parseChatResponse(data) {
-                    // Try to parse JSON response
+                if let jsonResponse = self.parseClaudeResponse(data) {
                     if let reading = self.parseBloodPressureJSON(jsonResponse) {
                         completion(.success(reading))
                     } else {
-                        print("⚠️ [OpenAI Vision] Could not parse values from response: \(jsonResponse)")
-                        completion(.success(nil)) // Return nil if cannot parse
+                        print("⚠️ [Claude Vision] Could not parse: \(jsonResponse)")
+                        completion(.success(nil))
                     }
                 } else {
-                    completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
+                    completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
                 }
             case .failure(let error):
                 completion(.failure(error))
@@ -364,21 +321,21 @@ Be warm, encouraging, and elderly-friendly. Keep it SIMPLE.
         }
     }
     
-    // MARK: - HTTP Request
-    private func makeRequest(
-        endpoint: String,
+    // MARK: - Claude HTTP Request
+    private func makeClaudeRequest(
         body: [String: Any],
         completion: @escaping (Result<Data, Error>) -> Void
     ) {
-        guard let url = URL(string: endpoint) else {
-            completion(.failure(NSError(domain: "OpenAI", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
+        guard let url = URL(string: anthropicEndpoint) else {
+            completion(.failure(NSError(domain: "Claude", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
             return
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue(anthropicApiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(anthropicVersion, forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -387,98 +344,68 @@ Be warm, encouraging, and elderly-friendly. Keep it SIMPLE.
             return
         }
         
-        print("🌐 [OpenAI] Making request to \(endpoint)")
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("❌ [OpenAI] Request error: \(error)")
                 completion(.failure(error))
                 return
             }
-            
             guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+                completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
                 return
             }
-            
             guard let data = data else {
-                completion(.failure(NSError(domain: "OpenAI", code: 500, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
                 return
-            }
-            
-            // Log response for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("📥 [OpenAI] Response (\(httpResponse.statusCode)): \(responseString.prefix(200))...")
             }
             
             if httpResponse.statusCode == 200 {
                 completion(.success(data))
             } else {
-                // Try to parse error message
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let error = json["error"] as? [String: Any],
-                   let message = error["message"] as? String {
-                    completion(.failure(NSError(domain: "OpenAI", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])))
-                } else {
-                    completion(.failure(NSError(domain: "OpenAI", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Request failed"])))
-                }
+                let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]).flatMap { json in
+                    (json["error"] as? [String: Any])?["message"] as? String
+                } ?? "Request failed"
+                completion(.failure(NSError(domain: "Claude", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])))
             }
-        }
-        
-        task.resume()
+        }.resume()
     }
     
-    // MARK: - Response Parsing
-    private func parseChatResponse(_ data: Data) -> String? {
+    private func parseClaudeResponse(_ data: Data) -> String? {
         do {
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let choices = json["choices"] as? [[String: Any]],
-               let firstChoice = choices.first,
-               let message = firstChoice["message"] as? [String: Any],
-               let content = message["content"] as? String {
-                return content.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let content = json["content"] as? [[String: Any]],
+                  let first = content.first,
+                  let type = first["type"] as? String, type == "text",
+                  let text = first["text"] as? String else {
+                return nil
             }
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
-            print("❌ [OpenAI] Parse error: \(error)")
+            return nil
         }
-        return nil
     }
     
     private func parseBloodPressureJSON(_ jsonString: String) -> BloodPressureReading? {
-        // Clean up the string - remove markdown code blocks if present
-        var cleanedString = jsonString
+        var cleaned = jsonString
             .replacingOccurrences(of: "```json", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
-        guard let data = cleanedString.data(using: .utf8) else { return nil }
-        
-        do {
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                // Check for error response
-                if json["error"] != nil {
-                    return nil
-                }
-                
-                // Extract values
-                guard let systolic = json["systolic"] as? Int,
-                      let diastolic = json["diastolic"] as? Int,
-                      let pulse = json["pulse"] as? Int else {
-                    return nil
-                }
-                
-                return BloodPressureReading(
-                    systolic: systolic,
-                    diastolic: diastolic,
-                    pulse: pulse,
-                    source: "gpt4-vision"
-                )
-            }
-        } catch {
-            print("❌ [OpenAI] JSON parse error: \(error)")
+        guard let data = cleaned.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
         }
-        
-        return nil
+        if json["error"] != nil { return nil }
+        guard let systolic = json["systolic"] as? Int,
+              let diastolic = json["diastolic"] as? Int,
+              let pulse = json["pulse"] as? Int else {
+            return nil
+        }
+        return BloodPressureReading(
+            systolic: systolic,
+            diastolic: diastolic,
+            pulse: pulse,
+            source: "claude-vision"
+        )
     }
 }
 
@@ -495,7 +422,7 @@ class APIKeyViewController: UIViewController {
     
     private let subtitleLabel: UILabel = {
         let label = UILabel()
-        label.text = "Enter your OpenAI API key to enable AI features"
+        label.text = "Enter your Claude (Anthropic) API key to enable AI features"
         label.font = .systemFont(ofSize: 18)
         label.textColor = .gray
         label.textAlignment = .center
@@ -505,7 +432,7 @@ class APIKeyViewController: UIViewController {
     
     private let apiKeyTextField: UITextField = {
         let textField = UITextField()
-        textField.placeholder = "sk-..."
+        textField.placeholder = "sk-ant-..."
         textField.borderStyle = .roundedRect
         textField.font = .systemFont(ofSize: 18)
         textField.autocapitalizationType = .none
@@ -535,11 +462,11 @@ class APIKeyViewController: UIViewController {
     private let instructionsLabel: UILabel = {
         let label = UILabel()
         label.text = """
-        How to get your API key:
-        1. Go to platform.openai.com
+        How to get your Claude API key:
+        1. Go to console.anthropic.com
         2. Sign in or create an account
-        3. Go to API Keys section
-        4. Create a new secret key
+        3. Go to API Keys
+        4. Create a new key
         5. Copy and paste it here
         """
         label.font = .systemFont(ofSize: 14)
@@ -552,8 +479,6 @@ class APIKeyViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        
-        // Load existing key if present
         if OpenAIService.shared.hasAPIKey() {
             apiKeyTextField.text = OpenAIService.shared.getAPIKey()
         }
@@ -561,7 +486,6 @@ class APIKeyViewController: UIViewController {
     
     private func setupUI() {
         view.backgroundColor = .white
-        
         view.addSubview(titleLabel)
         view.addSubview(subtitleLabel)
         view.addSubview(apiKeyTextField)
@@ -569,34 +493,26 @@ class APIKeyViewController: UIViewController {
         view.addSubview(cancelButton)
         view.addSubview(instructionsLabel)
         
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        apiKeyTextField.translatesAutoresizingMaskIntoConstraints = false
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
-        cancelButton.translatesAutoresizingMaskIntoConstraints = false
-        instructionsLabel.translatesAutoresizingMaskIntoConstraints = false
+        [titleLabel, subtitleLabel, apiKeyTextField, saveButton, cancelButton, instructionsLabel].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
         
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 40),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
             subtitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
             subtitleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
-            
             apiKeyTextField.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 40),
             apiKeyTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
             apiKeyTextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
             apiKeyTextField.heightAnchor.constraint(equalToConstant: 50),
-            
             saveButton.topAnchor.constraint(equalTo: apiKeyTextField.bottomAnchor, constant: 30),
             saveButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             saveButton.widthAnchor.constraint(equalToConstant: 200),
             saveButton.heightAnchor.constraint(equalToConstant: 50),
-            
             cancelButton.topAnchor.constraint(equalTo: saveButton.bottomAnchor, constant: 16),
             cancelButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
             instructionsLabel.topAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: 40),
             instructionsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
             instructionsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
@@ -611,7 +527,6 @@ class APIKeyViewController: UIViewController {
             showAlert(title: "Error", message: "Please enter an API key")
             return
         }
-        
         OpenAIService.shared.setAPIKey(apiKey)
         showAlert(title: "Success", message: "API key saved successfully!") {
             self.dismiss(animated: true)
@@ -624,9 +539,7 @@ class APIKeyViewController: UIViewController {
     
     private func showAlert(title: String, message: String, completion: (() -> Void)? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-            completion?()
-        })
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in completion?() })
         present(alert, animated: true)
     }
 }

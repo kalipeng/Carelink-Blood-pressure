@@ -36,6 +36,38 @@ class VoiceService: NSObject {
         }
     }
     
+    // MARK: - Voice Selection
+    /// Available English voices for TTS (Claude / guidance)
+    static func availableVoices() -> [AVSpeechSynthesisVoice] {
+        return AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("en") }
+            .sorted { ($0.name) < ($1.name) }
+    }
+    
+    /// Currently selected voice identifier (saved in UserDefaults)
+    var selectedVoiceIdentifier: String? {
+        get { UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") }
+        set { UserDefaults.standard.set(newValue, forKey: "selectedVoiceIdentifier") }
+    }
+    
+    /// Current voice to use for speech
+    private var currentVoice: AVSpeechSynthesisVoice? {
+        if let id = selectedVoiceIdentifier,
+           let voice = AVSpeechSynthesisVoice(identifier: id) {
+            return voice
+        }
+        return AVSpeechSynthesisVoice(language: "en-US")
+    }
+    
+    func setVoice(identifier: String) {
+        selectedVoiceIdentifier = identifier
+    }
+    
+    /// Display name for current voice (e.g. "Samantha")
+    var currentVoiceDisplayName: String {
+        return currentVoice?.name ?? "Default"
+    }
+    
     // MARK: - Text to Speech
     func speak(_ text: String, rate: Float = 0.45) {
         guard _isEnabled else { return }
@@ -46,7 +78,7 @@ class VoiceService: NSObject {
         }
         
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.voice = currentVoice ?? AVSpeechSynthesisVoice(language: "en-US")
         utterance.rate = rate  // 0.4-0.5 is slow, good for elderly
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0

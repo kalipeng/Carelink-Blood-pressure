@@ -3,7 +3,7 @@
 //  carelink
 //
 //  AI-Guided Blood Pressure Measurement Screen
-//  Features: Camera + GPT-4 Vision + Whisper + Step-by-step guidance
+//  iPad Optimized: Large camera preview (80%) + Single step display
 //
 
 import UIKit
@@ -33,20 +33,24 @@ class MeasureViewController: UIViewController {
         "When the numbers appear, point the camera at the screen so I can read them"
     ]
     
+    // Time for each step in seconds
+    private let stepDurations: [TimeInterval] = [8, 20, 10, 60, 0]
+    
     // MARK: - UI Components
     
-    // Top section - Camera
+    // Large Camera Container (80% of screen)
     private let cameraContainerView: UIView = {
         let view = UIView()
-        view.backgroundColor = .black
+        view.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
         view.clipsToBounds = true
         return view
     }()
     
+    // Header elements
     private let backButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("← Back", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 20, weight: .medium)
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
         button.layer.cornerRadius = 8
@@ -57,7 +61,7 @@ class MeasureViewController: UIViewController {
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "AI-Guided Measurement"
-        label.font = .systemFont(ofSize: 24, weight: .bold)
+        label.font = .systemFont(ofSize: 20, weight: .bold)
         label.textColor = .white
         label.textAlignment = .center
         return label
@@ -66,7 +70,7 @@ class MeasureViewController: UIViewController {
     private let timerLabel: UILabel = {
         let label = UILabel()
         label.text = "00:00"
-        label.font = .monospacedDigitSystemFont(ofSize: 20, weight: .semibold)
+        label.font = .monospacedDigitSystemFont(ofSize: 18, weight: .semibold)
         label.textColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
         label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
         label.textAlignment = .center
@@ -75,133 +79,155 @@ class MeasureViewController: UIViewController {
         return label
     }()
     
-    // Camera switch button
     private let cameraSwitchButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("🔄", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 24)
+        button.titleLabel?.font = .systemFont(ofSize: 22)
         button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        button.layer.cornerRadius = 20
+        button.layer.cornerRadius = 18
         return button
     }()
     
-    private let cameraPlaceholderLabel: UILabel = {
+    // Camera placeholder (shown when camera not available)
+    private let cameraPlaceholderView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0)
+        return view
+    }()
+    
+    private let cameraIconLabel: UILabel = {
         let label = UILabel()
-        label.text = "📷\nCamera Preview"
-        label.font = .systemFont(ofSize: 24)
+        label.text = "📷"
+        label.font = .systemFont(ofSize: 80)
+        label.textAlignment = .center
+        return label
+    }()
+    
+    private let cameraErrorLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Camera Preview"
+        label.font = .systemFont(ofSize: 24, weight: .medium)
         label.textColor = .white.withAlphaComponent(0.7)
         label.textAlignment = .center
         label.numberOfLines = 0
         return label
     }()
     
-    // Capture button (floating on camera) - Always visible for quick capture
+    // Capture button (centered on camera)
     private let captureButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("📸 Capture Reading", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
+        button.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
-        button.layer.cornerRadius = 25
-        button.isHidden = false // Always visible - capture anytime if numbers are ready
+        button.layer.cornerRadius = 28
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOpacity = 0.3
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 8
         return button
     }()
     
-    // Quick capture hint label
-    private let quickCaptureHintLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Already have numbers? Tap to capture now!"
-        label.font = .systemFont(ofSize: 14, weight: .medium)
-        label.textColor = .white
-        label.textAlignment = .center
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.6)
-        label.layer.cornerRadius = 12
-        label.clipsToBounds = true
-        return label
-    }()
-    
-    // Bottom section - Instructions panel
-    private let instructionsPanelView: UIView = {
+    // Bottom instruction panel (compact)
+    private let instructionPanelView: UIView = {
         let view = UIView()
         view.backgroundColor = .white
-        view.layer.cornerRadius = 24
+        view.layer.cornerRadius = 20
         view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         view.layer.shadowColor = UIColor.black.cgColor
-        view.layer.shadowOpacity = 0.1
+        view.layer.shadowOpacity = 0.15
         view.layer.shadowOffset = CGSize(width: 0, height: -4)
-        view.layer.shadowRadius = 10
+        view.layer.shadowRadius = 12
         return view
     }()
     
+    // Title row
     private let bpIconLabel: UILabel = {
         let label = UILabel()
         label.text = "🩺"
-        label.font = .systemFont(ofSize: 40)
+        label.font = .systemFont(ofSize: 32)
         return label
     }()
     
-    private let measurementTitleLabel: UILabel = {
+    private let panelTitleLabel: UILabel = {
         let label = UILabel()
         label.text = "Blood Pressure Measurement"
-        label.font = .systemFont(ofSize: 24, weight: .bold)
+        label.font = .systemFont(ofSize: 20, weight: .bold)
         label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
         return label
     }()
     
-    private let measurementSubtitleLabel: UILabel = {
+    private let panelSubtitleLabel: UILabel = {
         let label = UILabel()
         label.text = "Follow the voice guide or capture anytime"
-        label.font = .systemFont(ofSize: 16)
+        label.font = .systemFont(ofSize: 14)
         label.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
         return label
     }()
     
-    private let activityStepsLabel: UILabel = {
+    // Single step display (instead of all 5)
+    private let stepContainerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 0.08)
+        view.layer.cornerRadius = 16
+        view.layer.borderWidth = 2
+        view.layer.borderColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0).cgColor
+        return view
+    }()
+    
+    private let stepProgressLabel: UILabel = {
         let label = UILabel()
-        label.text = "Activity Steps"
-        label.font = .systemFont(ofSize: 18, weight: .semibold)
-        label.textColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
+        label.text = "1/5"
+        label.font = .systemFont(ofSize: 14, weight: .bold)
+        label.textColor = .white
+        label.textAlignment = .center
+        label.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
+        label.layer.cornerRadius = 14
+        label.clipsToBounds = true
         return label
     }()
     
-    private let stepsStackView: UIStackView = {
-        let stack = UIStackView()
-        stack.axis = .vertical
-        stack.spacing = 12
-        stack.alignment = .fill
-        return stack
+    private let stepTextLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Turn on your blood pressure monitor and wait for it to be ready"
+        label.font = .systemFont(ofSize: 17, weight: .medium)
+        label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
+        label.numberOfLines = 0
+        return label
     }()
     
-    private var stepViews: [UIView] = []
+    // Analyzing state
+    private let analyzingLabel: UILabel = {
+        let label = UILabel()
+        label.text = "🔍 Analyzing reading..."
+        label.font = .systemFont(ofSize: 17, weight: .medium)
+        label.textColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
+        label.textAlignment = .center
+        label.isHidden = true
+        return label
+    }()
     
+    // Bottom buttons
     private let manualEntryButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("✍️ Enter Manually Instead", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.setTitle("✏️ Enter Manually Instead", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
         button.setTitleColor(UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0), for: .normal)
         button.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 0.1)
         button.layer.cornerRadius = 12
-        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 24, bottom: 12, right: 24)
+        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
         return button
     }()
     
     private let voiceInputButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("🎤 Voice Input", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = UIColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0)
         button.layer.cornerRadius = 12
-        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 24, bottom: 12, right: 24)
+        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
         return button
-    }()
-    
-    
-    private let activityIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
-        indicator.color = .white
-        indicator.hidesWhenStopped = true
-        return indicator
     }()
     
     // MARK: - Lifecycle
@@ -209,7 +235,6 @@ class MeasureViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupCamera()
-        setupStepViews()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -239,22 +264,32 @@ class MeasureViewController: UIViewController {
         
         // Add subviews
         view.addSubview(cameraContainerView)
-        cameraContainerView.addSubview(cameraPlaceholderLabel)
+        
+        // Camera placeholder
+        cameraContainerView.addSubview(cameraPlaceholderView)
+        cameraPlaceholderView.addSubview(cameraIconLabel)
+        cameraPlaceholderView.addSubview(cameraErrorLabel)
+        
+        // Header
         cameraContainerView.addSubview(backButton)
         cameraContainerView.addSubview(titleLabel)
         cameraContainerView.addSubview(timerLabel)
         cameraContainerView.addSubview(cameraSwitchButton)
-        cameraContainerView.addSubview(captureButton)
-        cameraContainerView.addSubview(quickCaptureHintLabel)
         
-        view.addSubview(instructionsPanelView)
-        instructionsPanelView.addSubview(bpIconLabel)
-        instructionsPanelView.addSubview(measurementTitleLabel)
-        instructionsPanelView.addSubview(measurementSubtitleLabel)
-        instructionsPanelView.addSubview(activityStepsLabel)
-        instructionsPanelView.addSubview(stepsStackView)
-        instructionsPanelView.addSubview(manualEntryButton)
-        instructionsPanelView.addSubview(voiceInputButton)
+        // Capture button
+        cameraContainerView.addSubview(captureButton)
+        
+        // Instruction panel
+        view.addSubview(instructionPanelView)
+        instructionPanelView.addSubview(bpIconLabel)
+        instructionPanelView.addSubview(panelTitleLabel)
+        instructionPanelView.addSubview(panelSubtitleLabel)
+        instructionPanelView.addSubview(stepContainerView)
+        stepContainerView.addSubview(stepProgressLabel)
+        stepContainerView.addSubview(stepTextLabel)
+        instructionPanelView.addSubview(analyzingLabel)
+        instructionPanelView.addSubview(manualEntryButton)
+        instructionPanelView.addSubview(voiceInputButton)
         
         // Button actions
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
@@ -267,37 +302,41 @@ class MeasureViewController: UIViewController {
     }
     
     private func setupConstraints() {
-        cameraContainerView.translatesAutoresizingMaskIntoConstraints = false
-        cameraPlaceholderLabel.translatesAutoresizingMaskIntoConstraints = false
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        timerLabel.translatesAutoresizingMaskIntoConstraints = false
-        cameraSwitchButton.translatesAutoresizingMaskIntoConstraints = false
-        captureButton.translatesAutoresizingMaskIntoConstraints = false
-        quickCaptureHintLabel.translatesAutoresizingMaskIntoConstraints = false
-        instructionsPanelView.translatesAutoresizingMaskIntoConstraints = false
-        bpIconLabel.translatesAutoresizingMaskIntoConstraints = false
-        measurementTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        measurementSubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        activityStepsLabel.translatesAutoresizingMaskIntoConstraints = false
-        stepsStackView.translatesAutoresizingMaskIntoConstraints = false
-        manualEntryButton.translatesAutoresizingMaskIntoConstraints = false
-        voiceInputButton.translatesAutoresizingMaskIntoConstraints = false
+        // Disable autoresizing masks
+        [cameraContainerView, cameraPlaceholderView, cameraIconLabel, cameraErrorLabel,
+         backButton, titleLabel, timerLabel, cameraSwitchButton, captureButton,
+         instructionPanelView, bpIconLabel, panelTitleLabel, panelSubtitleLabel,
+         stepContainerView, stepProgressLabel, stepTextLabel, analyzingLabel,
+         manualEntryButton, voiceInputButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
         
         NSLayoutConstraint.activate([
-            // Camera container - top 45%
+            // Camera container - 80% of screen height
             cameraContainerView.topAnchor.constraint(equalTo: view.topAnchor),
             cameraContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cameraContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            cameraContainerView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.45),
+            cameraContainerView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.72),
             
-            // Camera placeholder
-            cameraPlaceholderLabel.centerXAnchor.constraint(equalTo: cameraContainerView.centerXAnchor),
-            cameraPlaceholderLabel.centerYAnchor.constraint(equalTo: cameraContainerView.centerYAnchor),
+            // Camera placeholder (fills camera container)
+            cameraPlaceholderView.topAnchor.constraint(equalTo: cameraContainerView.topAnchor),
+            cameraPlaceholderView.leadingAnchor.constraint(equalTo: cameraContainerView.leadingAnchor),
+            cameraPlaceholderView.trailingAnchor.constraint(equalTo: cameraContainerView.trailingAnchor),
+            cameraPlaceholderView.bottomAnchor.constraint(equalTo: cameraContainerView.bottomAnchor),
+            
+            // Camera icon
+            cameraIconLabel.centerXAnchor.constraint(equalTo: cameraPlaceholderView.centerXAnchor),
+            cameraIconLabel.centerYAnchor.constraint(equalTo: cameraPlaceholderView.centerYAnchor, constant: -20),
+            
+            // Camera error label
+            cameraErrorLabel.topAnchor.constraint(equalTo: cameraIconLabel.bottomAnchor, constant: 16),
+            cameraErrorLabel.centerXAnchor.constraint(equalTo: cameraPlaceholderView.centerXAnchor),
+            cameraErrorLabel.leadingAnchor.constraint(greaterThanOrEqualTo: cameraPlaceholderView.leadingAnchor, constant: 40),
+            cameraErrorLabel.trailingAnchor.constraint(lessThanOrEqualTo: cameraPlaceholderView.trailingAnchor, constant: -40),
             
             // Back button
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            backButton.leadingAnchor.constraint(equalTo: cameraContainerView.leadingAnchor, constant: 20),
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            backButton.leadingAnchor.constraint(equalTo: cameraContainerView.leadingAnchor, constant: 16),
             
             // Title
             titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
@@ -306,152 +345,121 @@ class MeasureViewController: UIViewController {
             // Timer
             timerLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
             timerLabel.trailingAnchor.constraint(equalTo: cameraSwitchButton.leadingAnchor, constant: -8),
-            timerLabel.widthAnchor.constraint(equalToConstant: 80),
-            timerLabel.heightAnchor.constraint(equalToConstant: 36),
+            timerLabel.widthAnchor.constraint(equalToConstant: 70),
+            timerLabel.heightAnchor.constraint(equalToConstant: 32),
             
             // Camera switch button
             cameraSwitchButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            cameraSwitchButton.trailingAnchor.constraint(equalTo: cameraContainerView.trailingAnchor, constant: -20),
-            cameraSwitchButton.widthAnchor.constraint(equalToConstant: 40),
-            cameraSwitchButton.heightAnchor.constraint(equalToConstant: 40),
+            cameraSwitchButton.trailingAnchor.constraint(equalTo: cameraContainerView.trailingAnchor, constant: -16),
+            cameraSwitchButton.widthAnchor.constraint(equalToConstant: 36),
+            cameraSwitchButton.heightAnchor.constraint(equalToConstant: 36),
             
-            // Quick capture hint (above capture button)
-            quickCaptureHintLabel.centerXAnchor.constraint(equalTo: cameraContainerView.centerXAnchor),
-            quickCaptureHintLabel.bottomAnchor.constraint(equalTo: captureButton.topAnchor, constant: -8),
-            quickCaptureHintLabel.widthAnchor.constraint(equalToConstant: 280),
-            quickCaptureHintLabel.heightAnchor.constraint(equalToConstant: 30),
-            
-            // Capture button
+            // Capture button (bottom of camera area)
             captureButton.centerXAnchor.constraint(equalTo: cameraContainerView.centerXAnchor),
-            captureButton.bottomAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -20),
-            captureButton.heightAnchor.constraint(equalToConstant: 50),
-            captureButton.widthAnchor.constraint(equalToConstant: 200),
+            captureButton.bottomAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -24),
+            captureButton.heightAnchor.constraint(equalToConstant: 56),
+            captureButton.widthAnchor.constraint(equalToConstant: 220),
             
-            // Instructions panel - bottom 55%
-            instructionsPanelView.topAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -24),
-            instructionsPanelView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            instructionsPanelView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            instructionsPanelView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            // Instruction panel (bottom 28%)
+            instructionPanelView.topAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -16),
+            instructionPanelView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            instructionPanelView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            instructionPanelView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
             // BP Icon
-            bpIconLabel.topAnchor.constraint(equalTo: instructionsPanelView.topAnchor, constant: 24),
-            bpIconLabel.leadingAnchor.constraint(equalTo: instructionsPanelView.leadingAnchor, constant: 24),
+            bpIconLabel.topAnchor.constraint(equalTo: instructionPanelView.topAnchor, constant: 20),
+            bpIconLabel.leadingAnchor.constraint(equalTo: instructionPanelView.leadingAnchor, constant: 20),
             
-            // Measurement title
-            measurementTitleLabel.centerYAnchor.constraint(equalTo: bpIconLabel.centerYAnchor, constant: -10),
-            measurementTitleLabel.leadingAnchor.constraint(equalTo: bpIconLabel.trailingAnchor, constant: 12),
+            // Panel title
+            panelTitleLabel.centerYAnchor.constraint(equalTo: bpIconLabel.centerYAnchor, constant: -8),
+            panelTitleLabel.leadingAnchor.constraint(equalTo: bpIconLabel.trailingAnchor, constant: 10),
             
-            // Measurement subtitle
-            measurementSubtitleLabel.topAnchor.constraint(equalTo: measurementTitleLabel.bottomAnchor, constant: 2),
-            measurementSubtitleLabel.leadingAnchor.constraint(equalTo: measurementTitleLabel.leadingAnchor),
+            // Panel subtitle
+            panelSubtitleLabel.topAnchor.constraint(equalTo: panelTitleLabel.bottomAnchor, constant: 2),
+            panelSubtitleLabel.leadingAnchor.constraint(equalTo: panelTitleLabel.leadingAnchor),
             
-            // Activity steps label
-            activityStepsLabel.topAnchor.constraint(equalTo: bpIconLabel.bottomAnchor, constant: 20),
-            activityStepsLabel.leadingAnchor.constraint(equalTo: instructionsPanelView.leadingAnchor, constant: 24),
+            // Step container (single step display)
+            stepContainerView.topAnchor.constraint(equalTo: bpIconLabel.bottomAnchor, constant: 16),
+            stepContainerView.leadingAnchor.constraint(equalTo: instructionPanelView.leadingAnchor, constant: 20),
+            stepContainerView.trailingAnchor.constraint(equalTo: instructionPanelView.trailingAnchor, constant: -20),
+            stepContainerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 60),
             
-            // Steps stack view
-            stepsStackView.topAnchor.constraint(equalTo: activityStepsLabel.bottomAnchor, constant: 12),
-            stepsStackView.leadingAnchor.constraint(equalTo: instructionsPanelView.leadingAnchor, constant: 24),
-            stepsStackView.trailingAnchor.constraint(equalTo: instructionsPanelView.trailingAnchor, constant: -24),
+            // Step progress label (1/5)
+            stepProgressLabel.leadingAnchor.constraint(equalTo: stepContainerView.leadingAnchor, constant: 12),
+            stepProgressLabel.centerYAnchor.constraint(equalTo: stepContainerView.centerYAnchor),
+            stepProgressLabel.widthAnchor.constraint(equalToConstant: 40),
+            stepProgressLabel.heightAnchor.constraint(equalToConstant: 28),
+            
+            // Step text
+            stepTextLabel.leadingAnchor.constraint(equalTo: stepProgressLabel.trailingAnchor, constant: 12),
+            stepTextLabel.trailingAnchor.constraint(equalTo: stepContainerView.trailingAnchor, constant: -12),
+            stepTextLabel.topAnchor.constraint(equalTo: stepContainerView.topAnchor, constant: 12),
+            stepTextLabel.bottomAnchor.constraint(equalTo: stepContainerView.bottomAnchor, constant: -12),
+            
+            // Analyzing label (centered in step container area)
+            analyzingLabel.centerXAnchor.constraint(equalTo: stepContainerView.centerXAnchor),
+            analyzingLabel.centerYAnchor.constraint(equalTo: stepContainerView.centerYAnchor),
             
             // Manual entry button
-            manualEntryButton.topAnchor.constraint(equalTo: stepsStackView.bottomAnchor, constant: 20),
-            manualEntryButton.leadingAnchor.constraint(equalTo: instructionsPanelView.leadingAnchor, constant: 24),
+            manualEntryButton.topAnchor.constraint(equalTo: stepContainerView.bottomAnchor, constant: 16),
+            manualEntryButton.leadingAnchor.constraint(equalTo: instructionPanelView.leadingAnchor, constant: 20),
+            manualEntryButton.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
             
             // Voice input button
             voiceInputButton.centerYAnchor.constraint(equalTo: manualEntryButton.centerYAnchor),
             voiceInputButton.leadingAnchor.constraint(equalTo: manualEntryButton.trailingAnchor, constant: 12),
-            
-            // Bottom constraint for manual entry row
-            manualEntryButton.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
         ])
     }
     
-    // MARK: - Setup Steps
-    private func setupStepViews() {
-        for (index, stepText) in steps.enumerated() {
-            let stepView = createStepView(number: index + 1, text: stepText, isActive: index == 0)
-            stepViews.append(stepView)
-            stepsStackView.addArrangedSubview(stepView)
-        }
-    }
-    
-    private func createStepView(number: Int, text: String, isActive: Bool) -> UIView {
-        let container = UIView()
-        container.backgroundColor = isActive ? primaryColor.withAlphaComponent(0.1) : UIColor(white: 0.97, alpha: 1)
-        container.layer.cornerRadius = 12
-        container.layer.borderWidth = isActive ? 2 : 0
-        container.layer.borderColor = isActive ? primaryColor.cgColor : UIColor.clear.cgColor
-        
-        let numberLabel = UILabel()
-        numberLabel.text = "\(number)"
-        numberLabel.font = .systemFont(ofSize: 16, weight: .bold)
-        numberLabel.textColor = .white
-        numberLabel.textAlignment = .center
-        numberLabel.backgroundColor = isActive ? primaryColor : UIColor(white: 0.7, alpha: 1)
-        numberLabel.layer.cornerRadius = 14
-        numberLabel.clipsToBounds = true
-        
-        let textLabel = UILabel()
-        textLabel.text = text
-        textLabel.font = .systemFont(ofSize: 16)
-        textLabel.textColor = isActive ? UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1) : UIColor(white: 0.5, alpha: 1)
-        textLabel.numberOfLines = 0
-        
-        container.addSubview(numberLabel)
-        container.addSubview(textLabel)
-        
-        numberLabel.translatesAutoresizingMaskIntoConstraints = false
-        textLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 50),
+    // MARK: - Step Display
+    private func updateStepDisplay(to stepIndex: Int, animated: Bool = true) {
+        let animationBlock = {
+            // Update progress label
+            self.stepProgressLabel.text = "\(stepIndex + 1)/5"
             
-            numberLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-            numberLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            numberLabel.widthAnchor.constraint(equalToConstant: 28),
-            numberLabel.heightAnchor.constraint(equalToConstant: 28),
+            // Update step text
+            self.stepTextLabel.text = self.steps[stepIndex]
             
-            textLabel.leadingAnchor.constraint(equalTo: numberLabel.trailingAnchor, constant: 12),
-            textLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-            textLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            textLabel.topAnchor.constraint(greaterThanOrEqualTo: container.topAnchor, constant: 12),
-            textLabel.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor, constant: -12),
-        ])
-        
-        return container
-    }
-    
-    private func updateStepHighlight(to stepIndex: Int) {
-        for (index, stepView) in stepViews.enumerated() {
-            let isActive = index == stepIndex
-            let isCompleted = index < stepIndex
-            
-            UIView.animate(withDuration: 0.3) {
-                stepView.backgroundColor = isActive ? self.primaryColor.withAlphaComponent(0.1) :
-                                          isCompleted ? UIColor(red: 0.9, green: 1, blue: 0.9, alpha: 1) :
-                                          UIColor(white: 0.97, alpha: 1)
-                stepView.layer.borderWidth = isActive ? 2 : 0
-                stepView.layer.borderColor = isActive ? self.primaryColor.cgColor : UIColor.clear.cgColor
-                
-                // Update number badge color
-                if let numberLabel = stepView.subviews.first(where: { ($0 as? UILabel)?.text == "\(index + 1)" }) as? UILabel {
-                    numberLabel.backgroundColor = isActive ? self.primaryColor :
-                                                 isCompleted ? UIColor(red: 0.3, green: 0.8, blue: 0.3, alpha: 1) :
-                                                 UIColor(white: 0.7, alpha: 1)
-                }
-                
-                // Update text color
-                if let textLabel = stepView.subviews.last as? UILabel {
-                    textLabel.textColor = isActive || isCompleted ? UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1) :
-                                         UIColor(white: 0.5, alpha: 1)
-                }
+            // Update colors based on step
+            if stepIndex == self.steps.count - 1 {
+                // Last step - ready to capture
+                self.stepContainerView.backgroundColor = UIColor(red: 0, green: 0.7, blue: 0.3, alpha: 0.1)
+                self.stepContainerView.layer.borderColor = UIColor(red: 0, green: 0.7, blue: 0.3, alpha: 1.0).cgColor
+                self.stepProgressLabel.backgroundColor = UIColor(red: 0, green: 0.7, blue: 0.3, alpha: 1.0)
+            } else {
+                // Normal step
+                self.stepContainerView.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 0.08)
+                self.stepContainerView.layer.borderColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0).cgColor
+                self.stepProgressLabel.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
             }
         }
         
-        // Capture button is always visible - hide hint once guidance starts
-        if isMeasuring {
-            quickCaptureHintLabel.isHidden = true
+        if animated {
+            // Fade out, change, fade in
+            UIView.animate(withDuration: 0.15, animations: {
+                self.stepContainerView.alpha = 0
+            }) { _ in
+                animationBlock()
+                UIView.animate(withDuration: 0.15) {
+                    self.stepContainerView.alpha = 1
+                }
+            }
+        } else {
+            animationBlock()
+        }
+    }
+    
+    private func showAnalyzingState() {
+        UIView.animate(withDuration: 0.2) {
+            self.stepContainerView.isHidden = true
+            self.analyzingLabel.isHidden = false
+        }
+    }
+    
+    private func hideAnalyzingState() {
+        UIView.animate(withDuration: 0.2) {
+            self.stepContainerView.isHidden = false
+            self.analyzingLabel.isHidden = true
         }
     }
     
@@ -459,7 +467,6 @@ class MeasureViewController: UIViewController {
     private func setupCamera() {
         captureSession = AVCaptureSession()
         captureSession?.sessionPreset = .high
-        
         configureCamera(position: currentCameraPosition)
     }
     
@@ -474,7 +481,8 @@ class MeasureViewController: UIViewController {
         // Get camera for specified position
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
             print("❌ [Camera] No \(position == .front ? "front" : "back") camera available")
-            cameraPlaceholderLabel.text = "📷\nCamera not available\nUse manual entry"
+            cameraErrorLabel.text = "Camera not available\nUse manual entry"
+            cameraPlaceholderView.isHidden = false
             return
         }
         
@@ -503,12 +511,13 @@ class MeasureViewController: UIViewController {
                 }
             }
             
-            cameraPlaceholderLabel.isHidden = true
+            cameraPlaceholderView.isHidden = true
             print("✅ [Camera] Setup complete - using \(position == .front ? "front" : "back") camera")
             
         } catch {
             print("❌ [Camera] Setup failed: \(error)")
-            cameraPlaceholderLabel.text = "📷\nCamera error\nUse manual entry"
+            cameraErrorLabel.text = "Camera error\nUse manual entry"
+            cameraPlaceholderView.isHidden = false
         }
     }
     
@@ -516,15 +525,10 @@ class MeasureViewController: UIViewController {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
         
-        // Toggle camera position
         currentCameraPosition = (currentCameraPosition == .back) ? .front : .back
-        
-        // Reconfigure camera
         configureCamera(position: currentCameraPosition)
         
-        // Update button appearance
-        let cameraName = currentCameraPosition == .front ? "Front" : "Back"
-        print("📷 [Camera] Switched to \(cameraName) camera")
+        print("📷 [Camera] Switched to \(currentCameraPosition == .front ? "front" : "back") camera")
     }
     
     private func startCameraSession() {
@@ -569,18 +573,16 @@ class MeasureViewController: UIViewController {
     }
     
     private func startGuidance() {
-        guard !isMeasuring else { return } // Prevent double-start
+        guard !isMeasuring else { return }
         
         isMeasuring = true
         currentStep = 0
         
         startTimer()
-        updateStepHighlight(to: 0)
+        updateStepDisplay(to: 0, animated: false)
+        hideAnalyzingState()
         
-        // Hide quick capture hint during guidance
-        quickCaptureHintLabel.isHidden = true
-        
-        // Voice guidance - starts automatically
+        // Voice guidance
         VoiceService.shared.speak("Starting blood pressure measurement. Step 1: \(steps[0])")
         
         // Auto-advance steps
@@ -594,17 +596,9 @@ class MeasureViewController: UIViewController {
         updateTimerLabel()
         
         currentStep = 0
-        updateStepHighlight(to: 0)
-        quickCaptureHintLabel.isHidden = false
+        updateStepDisplay(to: 0, animated: false)
+        hideAnalyzingState()
     }
-    
-    // Time for each step in seconds
-    // Step 1: Turn on monitor - 8 seconds
-    // Step 2: Put on cuff - 20 seconds  
-    // Step 3: Press START - 10 seconds
-    // Step 4: Wait for measurement - 60 seconds (blood pressure measurement takes ~45-60 seconds)
-    // Step 5: Point camera - user controlled
-    private let stepDurations: [TimeInterval] = [8, 20, 10, 60, 0]
     
     private func advanceStepsAutomatically() {
         guard isMeasuring else { return }
@@ -613,7 +607,6 @@ class MeasureViewController: UIViewController {
         
         // Step 4 (index 3) is the measurement - give countdown feedback
         if currentStep == 3 {
-            // Give periodic updates during measurement
             startMeasurementCountdown()
             return
         }
@@ -623,7 +616,7 @@ class MeasureViewController: UIViewController {
             
             if self.currentStep < self.steps.count - 1 {
                 self.currentStep += 1
-                self.updateStepHighlight(to: self.currentStep)
+                self.updateStepDisplay(to: self.currentStep)
                 
                 // Voice guidance for current step
                 VoiceService.shared.speak("Step \(self.currentStep + 1): \(self.steps[self.currentStep])")
@@ -649,7 +642,7 @@ class MeasureViewController: UIViewController {
             guard let self = self, self.isMeasuring, self.currentStep == 3 else { return }
             
             self.currentStep += 1
-            self.updateStepHighlight(to: self.currentStep)
+            self.updateStepDisplay(to: self.currentStep)
             VoiceService.shared.speak("Step 5: \(self.steps[self.currentStep])")
             
             // Last step - wait for user to capture
@@ -676,11 +669,12 @@ class MeasureViewController: UIViewController {
         
         captureButton.isEnabled = false
         captureButton.setTitle("Analyzing...", for: .normal)
+        showAnalyzingState()
         
         let settings = AVCapturePhotoSettings()
         photoOutput.capturePhoto(with: settings, delegate: self)
         
-        VoiceService.shared.speak("Capturing image. Please hold the camera steady and make sure the numbers are clearly visible.")
+        VoiceService.shared.speak("Capturing image. Please hold the camera steady.")
     }
     
     private func showAPIKeyAlert() {
@@ -704,14 +698,13 @@ class MeasureViewController: UIViewController {
         OpenAIService.shared.analyzeBloodPressureImage(image: image) { [weak self] result in
             DispatchQueue.main.async {
                 self?.captureButton.isEnabled = true
-                self?.captureButton.setTitle("Capture Reading", for: .normal)
+                self?.captureButton.setTitle("📸 Capture Reading", for: .normal)
+                self?.hideAnalyzingState()
                 
                 switch result {
                 case .success(let optionalReading):
                     if let reading = optionalReading {
                         print("✅ [Vision] Extracted: \(reading.systolic)/\(reading.diastolic), Pulse: \(reading.pulse)")
-                        
-                        // Show confirmation dialog to verify accuracy
                         self?.showConfirmReadingAlert(
                             systolic: reading.systolic,
                             diastolic: reading.diastolic,
@@ -719,13 +712,13 @@ class MeasureViewController: UIViewController {
                         )
                     } else {
                         print("⚠️ [Vision] Could not parse values from image")
-                        VoiceService.shared.speak("I couldn't read the numbers clearly. Please make sure the screen is fully visible and well-lit, then try again. Or you can enter the values manually.")
-                        self?.showRetryOrManualAlert(error: "Could not parse blood pressure values from the image. Make sure the monitor screen is clearly visible.")
+                        VoiceService.shared.speak("I couldn't read the numbers clearly. Please try again or enter manually.")
+                        self?.showRetryOrManualAlert(error: "Could not parse blood pressure values from the image.")
                     }
                     
                 case .failure(let error):
                     print("❌ [Vision] Failed: \(error.localizedDescription)")
-                    VoiceService.shared.speak("Sorry, there was a problem reading the monitor. Please check your internet connection and try again, or enter the values manually.")
+                    VoiceService.shared.speak("Sorry, there was a problem reading the monitor. Please try again or enter manually.")
                     self?.showRetryOrManualAlert(error: error.localizedDescription)
                 }
             }
@@ -733,7 +726,6 @@ class MeasureViewController: UIViewController {
     }
     
     private func showConfirmReadingAlert(systolic: Int, diastolic: Int, pulse: Int) {
-        // Speak the reading
         VoiceService.shared.speak("I read \(systolic) over \(diastolic), pulse \(pulse). Is this correct?")
         
         let alert = UIAlertController(
@@ -744,12 +736,7 @@ class MeasureViewController: UIViewController {
         
         alert.addAction(UIAlertAction(title: "✓ Correct, Save", style: .default) { [weak self] _ in
             VoiceService.shared.speak("Saving your result.")
-            self?.handleMeasurementComplete(
-                systolic: systolic,
-                diastolic: diastolic,
-                pulse: pulse,
-                source: "vision"
-            )
+            self?.handleMeasurementComplete(systolic: systolic, diastolic: diastolic, pulse: pulse, source: "vision")
         })
         
         alert.addAction(UIAlertAction(title: "✗ Wrong, Re-capture", style: .default) { [weak self] _ in
@@ -878,7 +865,6 @@ class MeasureViewController: UIViewController {
     @objc private func voiceInputTapped() {
         VoiceService.shared.speak("Please say your blood pressure reading. For example: one twenty over eighty, pulse seventy two.")
         
-        // Start recording
         AudioRecorderService.shared.recordForDuration(10) { [weak self] audioURL in
             guard let audioURL = audioURL else {
                 DispatchQueue.main.async {
@@ -887,7 +873,6 @@ class MeasureViewController: UIViewController {
                 return
             }
             
-            // Transcribe with Whisper
             OpenAIService.shared.transcribeAudio(audioURL: audioURL) { result in
                 DispatchQueue.main.async {
                     switch result {
@@ -900,7 +885,6 @@ class MeasureViewController: UIViewController {
                         VoiceService.shared.speak("Could not understand. Please try manual entry.")
                     }
                     
-                    // Clean up audio file
                     AudioRecorderService.shared.deleteRecording(at: audioURL)
                 }
             }
@@ -908,16 +892,11 @@ class MeasureViewController: UIViewController {
     }
     
     private func parseVoiceInput(_ text: String) {
-        // Use GPT to parse the voice input
         let prompt = """
         Extract blood pressure readings from this voice input: "\(text)"
         
         Return ONLY a JSON object: {"systolic": NUMBER, "diastolic": NUMBER, "pulse": NUMBER}
         If you can't find a value, use -1.
-        
-        Examples:
-        - "one twenty over eighty pulse seventy two" → {"systolic": 120, "diastolic": 80, "pulse": 72}
-        - "blood pressure is 135 over 85" → {"systolic": 135, "diastolic": 85, "pulse": -1}
         """
         
         OpenAIService.shared.chatCompletion(
@@ -953,7 +932,6 @@ class MeasureViewController: UIViewController {
         
         let pulse = (json["pulse"] as? Int) ?? 0
         
-        // Confirm with user
         let confirmMsg = "I heard: \(systolic) over \(diastolic)\(pulse > 0 ? ", pulse \(pulse)" : ""). Is this correct?"
         VoiceService.shared.speak(confirmMsg)
         
@@ -989,7 +967,7 @@ class MeasureViewController: UIViewController {
             source: source
         )
         
-        print("✅ [MeasureVC] Measurement complete: \(reading.systolic)/\(reading.diastolic) mmHg, Pulse: \(reading.pulse), Source: \(source)")
+        print("✅ [MeasureVC] Measurement complete: \(reading.systolic)/\(reading.diastolic) mmHg, Pulse: \(reading.pulse)")
         
         // Save locally
         BloodPressureReading.add(reading)
@@ -1026,6 +1004,9 @@ extension MeasureViewController: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
             print("❌ [Camera] Photo capture error: \(error)")
+            hideAnalyzingState()
+            captureButton.isEnabled = true
+            captureButton.setTitle("📸 Capture Reading", for: .normal)
             showManualEntryAlert()
             return
         }
@@ -1033,6 +1014,9 @@ extension MeasureViewController: AVCapturePhotoCaptureDelegate {
         guard let imageData = photo.fileDataRepresentation(),
               let image = UIImage(data: imageData) else {
             print("❌ [Camera] Could not get image data")
+            hideAnalyzingState()
+            captureButton.isEnabled = true
+            captureButton.setTitle("📸 Capture Reading", for: .normal)
             showManualEntryAlert()
             return
         }
@@ -1044,7 +1028,6 @@ extension MeasureViewController: AVCapturePhotoCaptureDelegate {
 
 // MARK: - SwiftUI Preview
 #if DEBUG
-// Canvas Preview: use a simulator. Previews often fail on physical devices.
 struct MeasureViewController_Previews: PreviewProvider {
     static var previews: some View {
         MeasureViewControllerRepresentable()

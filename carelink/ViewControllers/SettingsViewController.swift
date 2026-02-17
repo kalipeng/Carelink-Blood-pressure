@@ -34,11 +34,18 @@ class SettingsViewController: UIViewController {
 
 extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
     func numberOfSections(in tableView: UITableView) -> Int {
-        return 2
+        return 3
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return section == 0 ? 3 : 1
+        if section == 0 { return 3 }
+        if section == 1 { return 2 }  // API URL, Patient ID
+        return 1  // About
+    }
+    
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        if section == 1 { return "Firebase / API" }
+        return nil
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -59,6 +66,17 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
                 cell.textLabel?.text = "设备连接"
                 cell.detailTextLabel?.text = iHealthService.shared.isConnected ? "已连接" : "未连接"
             }
+        } else if indexPath.section == 1 {
+            if indexPath.row == 0 {
+                cell.textLabel?.text = "API 地址"
+                cell.detailTextLabel?.text = CloudSyncService.shared.baseURL
+                cell.detailTextLabel?.numberOfLines = 2
+                cell.accessoryType = .disclosureIndicator
+            } else {
+                cell.textLabel?.text = "患者 ID"
+                cell.detailTextLabel?.text = CloudSyncService.shared.patientId
+                cell.accessoryType = .disclosureIndicator
+            }
         } else {
             cell.textLabel?.text = "关于"
             cell.detailTextLabel?.text = "版本 1.0"
@@ -72,11 +90,34 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
         tableView.deselectRow(at: indexPath, animated: true)
         if indexPath.section == 0 && indexPath.row == 1 {
             let vc = VoiceSelectionViewController()
-            vc.onSelect = { [weak self] in
+            vc.onSelect = { [weak self] in self?.tableView.reloadData() }
+            navigationController?.pushViewController(vc, animated: true)
+        } else if indexPath.section == 1 && indexPath.row == 0 {
+            showEditAlert(title: "API 地址", message: "CareLink 临床看板后端地址", current: CloudSyncService.shared.baseURL, placeholder: "https://carelink-clinician-dashboard-hdld.vercel.app") { [weak self] newValue in
+                if let v = newValue, !v.isEmpty { CloudSyncService.shared.baseURL = v.trimmingCharacters(in: .whitespacesAndNewlines) }
                 self?.tableView.reloadData()
             }
-            navigationController?.pushViewController(vc, animated: true)
+        } else if indexPath.section == 1 && indexPath.row == 1 {
+            showEditAlert(title: "患者 ID", message: "API 必填，例如 P-2025-001", current: CloudSyncService.shared.patientId, placeholder: "P-2025-001") { [weak self] newValue in
+                if let v = newValue, !v.isEmpty { CloudSyncService.shared.patientId = v.trimmingCharacters(in: .whitespacesAndNewlines) }
+                self?.tableView.reloadData()
+            }
         }
+    }
+    
+    private func showEditAlert(title: String, message: String, current: String, placeholder: String, onSave: @escaping (String?) -> Void) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addTextField { tf in
+            tf.text = current
+            tf.placeholder = placeholder
+            tf.autocapitalizationType = .none
+            tf.autocorrectionType = .no
+        }
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+        alert.addAction(UIAlertAction(title: "保存", style: .default) { _ in
+            onSave(alert.textFields?.first?.text)
+        })
+        present(alert, animated: true)
     }
     
     @objc private func voiceToggled(_ sender: UISwitch) {

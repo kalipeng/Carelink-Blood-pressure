@@ -561,9 +561,11 @@ class ResultViewController: UIViewController {
                     print("❌ [ResultVC] Upload failed: \(error ?? "Unknown error")")
                     
                     // Show error alert
+                    let errMsg = (error ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let detail = errMsg.isEmpty ? "Check Settings: API URL and Patient ID. Server may be down or URL wrong." : errMsg
                     let alert = UIAlertController(
                         title: "Upload Failed",
-                        message: "Failed to upload data to cloud. Your data is saved locally.\n\nError: \(error ?? "Unknown error")",
+                        message: "Your data is saved locally.\n\n\(detail)",
                         preferredStyle: .alert
                     )
                     alert.addAction(UIAlertAction(title: "OK", style: .default))

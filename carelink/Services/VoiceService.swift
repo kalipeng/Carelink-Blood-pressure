@@ -8,7 +8,8 @@
 import Foundation
 import AVFoundation
 
-class VoiceService: NSObject {
+@MainActor
+final class VoiceService: NSObject {
     
     static let shared = VoiceService()
     
@@ -77,14 +78,38 @@ class VoiceService: NSObject {
             synthesizer.stopSpeaking(at: .immediate)
         }
         
-        let utterance = AVSpeechUtterance(string: text)
+        let cleanText = Self.stripEmoji(text)
+        let utterance = AVSpeechUtterance(string: cleanText)
         utterance.voice = currentVoice ?? AVSpeechSynthesisVoice(language: "en-US")
         utterance.rate = rate  // 0.4-0.5 is slow, good for elderly
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
         
         synthesizer.speak(utterance)
-        print("🔊 Voice: \(text)")
+        print("🔊 Voice: \(cleanText)")
+    }
+    
+    /// Remove emoji and other symbols so TTS doesn't read them aloud
+    private static func stripEmoji(_ string: String) -> String {
+        func isEmojiScalar(_ scalar: Unicode.Scalar) -> Bool {
+            switch scalar.value {
+            case 0x1F300...0x1F9FF: return true
+            case 0x2600...0x26FF: return true
+            case 0x2700...0x27BF: return true
+            case 0xFE00...0xFE0F: return true
+            case 0x1F000...0x1F02F: return true
+            case 0x1F600...0x1F64F: return true
+            case 0x1F680...0x1F6FF: return true
+            case 0x2300...0x23FF: return true
+            case 0x2B50, 0x2728, 0x274C, 0x274E: return true
+            default: return false
+            }
+        }
+        return string.filter { char in
+            !char.unicodeScalars.contains(where: isEmojiScalar)
+        }
+        .replacingOccurrences(of: "  +", with: " ", options: .regularExpression)
+        .trimmingCharacters(in: .whitespaces)
     }
     
     // MARK: - Quick Voice Prompts
@@ -146,17 +171,18 @@ class VoiceService: NSObject {
 }
 
 // MARK: - AVSpeechSynthesizerDelegate
+// Delegate callbacks are invoked from a background thread; use nonisolated to satisfy the protocol.
 extension VoiceService: AVSpeechSynthesizerDelegate {
     
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         print("🔊 Speech started")
     }
     
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         print("✅ Speech finished")
     }
     
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         print("⏹️ Speech cancelled")
     }
 }

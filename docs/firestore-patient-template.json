@@ -1,0 +1,46 @@
+{
+  "address": {
+    "city": "San Francisco",
+    "state": "CA",
+    "street": "456 Oak Avenue",
+    "zipCode": "94103"
+  },
+  "assignedClinicianId": "clinician-001",
+  "createdAt": "2026-02-16T00:00:00.000Z",
+  "dateOfBirth": "1962-07-20",
+  "diagnosis": [
+    "Hypertension",
+    "Hyperlipidemia"
+  ],
+  "email": "patient005@email.com",
+  "emergencyContact": {
+    "name": "Jane Doe",
+    "phone": "(555) 987-6543",
+    "relationship": "Daughter"
+  },
+  "firstName": "Alex",
+  "gender": "female",
+  "id": "P-2025-005",
+  "lastContact": "2026-02-16T00:00:00.000Z",
+  "lastName": "Doe",
+  "medications": [
+    {
+      "dosage": "5mg",
+      "frequency": "Once daily",
+      "name": "Amlodipine",
+      "startDate": "2024-06-01"
+    },
+    {
+      "dosage": "20mg",
+      "frequency": "Once daily",
+      "name": "Atorvastatin",
+      "startDate": "2024-06-01"
+    }
+  ],
+  "phone": "(555) 234-5678",
+  "riskLevel": "medium",
+  "status": "active",
+  "targetDiastolic": 80,
+  "targetSystolic": 130,
+  "updatedAt": "2026-02-16T00:00:00.000Z"
+}

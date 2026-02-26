@@ -11,7 +11,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>健康监测</string>
+	<string>CareLink</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
@@ -54,10 +54,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Used to capture the blood pressure monitor screen so we can read and record your measurement automatically.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used for voice input so you can speak your blood pressure reading.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>需要蓝牙连接血压计设备进行健康监测</string>
+	<string>Bluetooth is required to connect to the blood pressure device for monitoring.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>需要蓝牙连接血压计设备进行健康监测</string>
+	<string>Bluetooth is required to connect to the blood pressure device for monitoring.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
@@ -71,5 +75,12 @@
 	<false/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+		<key>UIImageName</key>
+		<string></string>
+	</dict>
 </dict>
 </plist>

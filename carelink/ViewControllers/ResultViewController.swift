@@ -42,13 +42,14 @@ class ResultViewController: UIViewController {
     
     // 📤 Upload button
     private let uploadButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("📤 Upload to Cloud", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 16, regular: 20, large: 22), weight: .medium)
-        button.backgroundColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0)
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 12
-        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
+        var config = UIButton.Configuration.plain()
+        let font = UIFont.systemFont(ofSize: UIScreen.adaptiveFont(small: 16, regular: 20, large: 22), weight: .medium)
+        config.attributedTitle = AttributedString("📤 Upload to Cloud", attributes: AttributeContainer([.font: font]))
+        config.baseForegroundColor = .white
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20)
+        config.background.backgroundColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0)
+        config.background.cornerRadius = 12
+        let button = UIButton(configuration: config)
         return button
     }()
     
@@ -87,7 +88,7 @@ class ResultViewController: UIViewController {
         view.layer.cornerRadius = 16
         view.layer.borderWidth = 2
         view.layer.borderColor = UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0).cgColor
-        view.isHidden = true  // 默认隐藏
+        view.isHidden = true  // Hidden by default
         return view
     }()
     
@@ -543,13 +544,11 @@ class ResultViewController: UIViewController {
                 self.uploadButton.setTitle("📤 Upload to Cloud", for: .normal)
                 
                 if success {
-                    print("✅ [ResultVC] Upload successful!")
+                    print("✅ [ResultVC] Upload successful! patientId=\(CloudSyncService.shared.patientId) → \(CloudSyncService.shared.baseURL)")
                     
-                    // Show success feedback
                     let generator = UINotificationFeedbackGenerator()
                     generator.notificationOccurred(.success)
                     
-                    // Temporarily change button text
                     self.uploadButton.setTitle("✅ Uploaded!", for: .normal)
                     self.uploadButton.backgroundColor = UIColor(red: 0, green: 0.78, blue: 0.33, alpha: 1.0)
                     

@@ -2,7 +2,7 @@
 //  HistoryViewController.swift
 //  HealthPad
 //
-//  历史记录界面
+//  History screen
 //
 
 import UIKit
@@ -115,11 +115,11 @@ class HistoryViewController: UIViewController {
     }
     
     private func loadData() {
-        print("📖 [HistoryVC] 开始加载历史数据...")
+        print("📖 [HistoryVC] Loading history...")
         readings = BloodPressureReading.load()
-        print("📊 [HistoryVC] 加载了 \(readings.count) 条记录")
+        print("📊 [HistoryVC] Loaded \(readings.count) readings")
         
-        // 打印最近 3 条记录
+        // Log recent readings
         for (index, reading) in readings.prefix(3).enumerated() {
             print("   \(index + 1). \(reading.formattedValue) mmHg - \(reading.category)")
         }
@@ -274,7 +274,7 @@ class ModernHistoryCell: UITableViewCell {
         formatter.dateFormat = "hh:mm a"
         let timeString = formatter.string(from: reading.timestamp)
         
-        // 🔍 添加数据来源标识
+        // Source indicator
         let sourceEmoji: String
         switch reading.source {
         case "bluetooth":
@@ -314,11 +314,14 @@ class ModernHistoryCell: UITableViewCell {
 }
 
 // MARK: - SwiftUI Preview
-#if DEBUG
+// Preview only in simulator to avoid "Failed to install preview host" on device.
+// Run the app with ⌘R for device testing.
+#if DEBUG && targetEnvironment(simulator)
 struct HistoryViewController_Previews: PreviewProvider {
     static var previews: some View {
         HistoryViewControllerRepresentable()
             .edgesIgnoringSafeArea(.all)
+            .previewDevice(PreviewDevice(rawValue: "iPad Pro (11-inch) (M5)"))
     }
 }
 
@@ -328,7 +331,7 @@ struct HistoryViewControllerRepresentable: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: HistoryViewController, context: Context) {
-        // 更新视图控制器（如果需要）
+        // Update view controller if needed
     }
 }
 #endif

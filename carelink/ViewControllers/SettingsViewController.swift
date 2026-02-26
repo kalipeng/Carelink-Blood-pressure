@@ -2,7 +2,7 @@
 //  SettingsViewController.swift
 //  HealthPad
 //
-//  设置界面
+//  Settings screen
 //
 
 import UIKit
@@ -21,7 +21,7 @@ class SettingsViewController: UIViewController {
     }
     
     private func setupUI() {
-        title = "设置"
+        title = "Settings"
         view.backgroundColor = .systemGroupedBackground
         
         view.addSubview(tableView)
@@ -53,33 +53,33 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
         
         if indexPath.section == 0 {
             if indexPath.row == 0 {
-                cell.textLabel?.text = "语音提示"
+                cell.textLabel?.text = "Voice guidance"
                 let toggle = UISwitch()
                 toggle.isOn = UserDefaults.standard.bool(forKey: "voiceEnabled")
                 toggle.addTarget(self, action: #selector(voiceToggled(_:)), for: .valueChanged)
                 cell.accessoryView = toggle
             } else if indexPath.row == 1 {
-                cell.textLabel?.text = "语音选择"
+                cell.textLabel?.text = "Voice"
                 cell.detailTextLabel?.text = VoiceService.shared.currentVoiceDisplayName
                 cell.accessoryType = .disclosureIndicator
             } else {
-                cell.textLabel?.text = "设备连接"
-                cell.detailTextLabel?.text = iHealthService.shared.isConnected ? "已连接" : "未连接"
+                cell.textLabel?.text = "Device"
+                cell.detailTextLabel?.text = iHealthService.shared.isConnected ? "Connected" : "Not connected"
             }
         } else if indexPath.section == 1 {
             if indexPath.row == 0 {
-                cell.textLabel?.text = "API 地址"
+                cell.textLabel?.text = "API URL"
                 cell.detailTextLabel?.text = CloudSyncService.shared.baseURL
                 cell.detailTextLabel?.numberOfLines = 2
                 cell.accessoryType = .disclosureIndicator
             } else {
-                cell.textLabel?.text = "患者 ID"
+                cell.textLabel?.text = "Patient ID"
                 cell.detailTextLabel?.text = CloudSyncService.shared.patientId
                 cell.accessoryType = .disclosureIndicator
             }
         } else {
-            cell.textLabel?.text = "关于"
-            cell.detailTextLabel?.text = "版本 1.0"
+            cell.textLabel?.text = "About"
+            cell.detailTextLabel?.text = "Version 1.0"
             cell.accessoryType = .disclosureIndicator
         }
         
@@ -93,12 +93,12 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
             vc.onSelect = { [weak self] in self?.tableView.reloadData() }
             navigationController?.pushViewController(vc, animated: true)
         } else if indexPath.section == 1 && indexPath.row == 0 {
-            showEditAlert(title: "API 地址", message: "CareLink 临床看板后端地址", current: CloudSyncService.shared.baseURL, placeholder: "https://carelink-clinician-dashboard-hdld.vercel.app") { [weak self] newValue in
+            showEditAlert(title: "API URL", message: "CareLink clinician dashboard backend URL", current: CloudSyncService.shared.baseURL, placeholder: "https://carelinkclinician-dashboard-main.vercel.app") { [weak self] newValue in
                 if let v = newValue, !v.isEmpty { CloudSyncService.shared.baseURL = v.trimmingCharacters(in: .whitespacesAndNewlines) }
                 self?.tableView.reloadData()
             }
         } else if indexPath.section == 1 && indexPath.row == 1 {
-            showEditAlert(title: "患者 ID", message: "API 必填，例如 P-2025-001", current: CloudSyncService.shared.patientId, placeholder: "P-2025-001") { [weak self] newValue in
+            showEditAlert(title: "Patient ID", message: "Required for API, e.g. P-2025-005", current: CloudSyncService.shared.patientId, placeholder: "P-2025-005") { [weak self] newValue in
                 if let v = newValue, !v.isEmpty { CloudSyncService.shared.patientId = v.trimmingCharacters(in: .whitespacesAndNewlines) }
                 self?.tableView.reloadData()
             }
@@ -113,8 +113,8 @@ extension SettingsViewController: UITableViewDelegate, UITableViewDataSource {
             tf.autocapitalizationType = .none
             tf.autocorrectionType = .no
         }
-        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
-        alert.addAction(UIAlertAction(title: "保存", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
             onSave(alert.textFields?.first?.text)
         })
         present(alert, animated: true)
@@ -134,7 +134,7 @@ class VoiceSelectionViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "语音选择"
+        title = "Voice"
         view.backgroundColor = .systemGroupedBackground
         voices = VoiceService.availableVoices()
         

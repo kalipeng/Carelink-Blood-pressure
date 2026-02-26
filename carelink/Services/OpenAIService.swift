@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import CoreImage
 
 // MARK: - AI Service (Claude Opus + optional Whisper)
 class OpenAIService {
@@ -16,7 +17,12 @@ class OpenAIService {
     // Anthropic Claude API
     private let anthropicEndpoint = "https://api.anthropic.com/v1/messages"
     private let anthropicVersion = "2023-06-01"
-    private let claudeModel = "claude-opus-4-6"  // Claude Opus (Anthropic)
+    // Chat and general use (use current model IDs; older ones like claude-3-5-sonnet-20241022 may be deprecated)
+    private let claudeModel = "claude-sonnet-4-6"
+    /// Best vision/reasoning for BP monitor reading
+    private let claudeVisionModel = "claude-opus-4-6"
+    /// Faster, lower-latency model for behavior-based guidance (video/frame)
+    private let claudeGuidanceModel = "claude-haiku-4-5-20251001"
     
     // Claude API key (primary - for chat + vision)
     private var anthropicApiKey: String {
@@ -192,7 +198,8 @@ class OpenAIService {
         }.resume()
     }
     
-    // MARK: - Vision (Claude) – measurement guidance
+    // MARK: - Vision (Claude) – behavior-based measurement guidance (low latency)
+    /// Observes what the person is doing in the frame and returns ONE short guidance sentence.
     func analyzeMeasurementGuidance(
         image: UIImage,
         completion: @escaping (Result<String, Error>) -> Void
@@ -202,21 +209,27 @@ class OpenAIService {
             return
         }
         
-        guard let imageData = image.jpegData(compressionQuality: 0.6) else {
+        let resized = resizeImageForVision(image, maxLength: 640)
+        guard let imageData = resized.jpegData(compressionQuality: 0.5) else {
             completion(.failure(NSError(domain: "Claude", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])))
             return
         }
         let base64Image = imageData.base64EncodedString()
         
         let systemPrompt = """
-        You are a caring health coach helping elderly people measure their blood pressure correctly.
-        Your job is to check: posture, cuff position, arm at heart level, and if they look relaxed.
-        Respond with ONE short, friendly sentence (max 10 words) with the MOST IMPORTANT guidance.
-        Be warm and elderly-friendly.
+        You are a caring health coach watching someone measure their blood pressure.
+        Look at what the PERSON is doing in the image: posture, cuff on arm, arm position, whether they are pressing the monitor, waiting, or showing the screen.
+        Give ONE short, friendly sentence (max 8 words) that tells them the NEXT or MOST IMPORTANT thing to do based on what you see. Examples:
+        - "Sit back and relax your arm."
+        - "Put the cuff one inch above your elbow."
+        - "Press the START button on the monitor."
+        - "Keep still until the measurement finishes."
+        - "Point the camera at the monitor screen."
+        Reply with ONLY that one sentence, nothing else. Be warm and elderly-friendly.
         """
         
         let userContent: [[String: Any]] = [
-            ["type": "text", "text": "Am I measuring my blood pressure correctly? Give me ONE tip."],
+            ["type": "text", "text": "What do you see the person doing? Reply with ONE short guidance sentence (max 8 words) for the next step."],
             [
                 "type": "image",
                 "source": [
@@ -228,15 +241,15 @@ class OpenAIService {
         ]
         
         let requestBody: [String: Any] = [
-            "model": claudeModel,
-            "max_tokens": 64,
+            "model": claudeGuidanceModel,
+            "max_tokens": 56,
             "system": systemPrompt,
             "messages": [
                 ["role": "user", "content": userContent]
             ]
         ]
         
-        makeClaudeRequest(body: requestBody) { result in
+        makeClaudeRequest(body: requestBody, timeout: 25) { result in
             switch result {
             case .success(let data):
                 if let guidance = self.parseClaudeResponse(data) {
@@ -260,29 +273,35 @@ class OpenAIService {
             return
         }
         
-        guard let imageData = image.jpegData(compressionQuality: 0.95) else {
+        // Larger image for digit clarity (1536); optional contrast boost for dim/glossy screens
+        let resized = resizeImageForVision(image, maxLength: 1536)
+        let enhanced = enhanceImageForBPReading(resized)
+        guard let imageData = enhanced.jpegData(compressionQuality: 0.9) else {
             completion(.failure(NSError(domain: "Claude", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])))
             return
         }
         let base64Image = imageData.base64EncodedString()
         
         let systemPrompt = """
-        You are a precise medical device reader. Your ONLY task is to read the EXACT numbers displayed on a blood pressure monitor screen.
-        
-        CRITICAL ACCURACY RULES:
-        1. Read EACH DIGIT carefully: 0-9. Watch for 1 vs 7, 6 vs 8, 3 vs 8.
-        2. TOP/LARGEST number = Systolic (SYS), typically 90-180.
-        3. MIDDLE = Diastolic (DIA), typically 60-110.
-        4. BOTTOM/heart icon = Pulse, typically 50-100.
-        5. Systolic MUST be greater than Diastolic; if not, you swapped them.
-        
-        Respond ONLY with this exact JSON, no other text:
-        {"systolic": NUMBER, "diastolic": NUMBER, "pulse": NUMBER}
-        If truly unreadable: {"error": "Cannot read values"}
+        You are a medical device reader. Your ONLY job is to read the numbers on the BLOOD PRESSURE MONITOR's digital/LCD screen. Ignore everything else in the image (hands, table, room).
+
+        WHERE TO LOOK: Find the small rectangular display or screen on the device. It shows 3 values:
+        - SYS (systolic): usually the TOP or LARGEST number, range 90-200
+        - DIA (diastolic): usually the MIDDLE number, range 50-120
+        - PULSE (heart rate): usually BOTTOM or next to a heart symbol, range 40-120
+
+        RULES:
+        1. Read digit by digit. Easy to confuse: 1 and 7, 6 and 8, 3 and 5 and 8. Choose the value that fits normal BP ranges.
+        2. Systolic must be greater than diastolic. If you read them reversed, swap.
+        3. If the screen is partly visible, give your best estimate. If you cannot see any numbers, respond with the error JSON.
+        4. Reply with ONLY valid JSON, no other text. Integers only.
+
+        SUCCESS format: {"systolic": 120, "diastolic": 80, "pulse": 72}
+        UNREADABLE: {"error": "Cannot read values"}
         """
         
         let userContent: [[String: Any]] = [
-            ["type": "text", "text": "Read the EXACT numbers on this blood pressure monitor. Return ONLY the JSON with systolic, diastolic, and pulse."],
+            ["type": "text", "text": "Read the three numbers on the blood pressure monitor display (systolic, diastolic, pulse). Reply with ONLY this JSON, nothing else: {\"systolic\": number, \"diastolic\": number, \"pulse\": number}"],
             [
                 "type": "image",
                 "source": [
@@ -294,36 +313,72 @@ class OpenAIService {
         ]
         
         let requestBody: [String: Any] = [
-            "model": claudeModel,
-            "max_tokens": 150,
+            "model": claudeVisionModel,
+            "max_tokens": 120,
             "system": systemPrompt,
             "messages": [
                 ["role": "user", "content": userContent]
             ]
         ]
         
-        makeClaudeRequest(body: requestBody) { result in
-            switch result {
-            case .success(let data):
-                if let jsonResponse = self.parseClaudeResponse(data) {
+        func performRequest(retryCount: Int) {
+            makeClaudeRequest(body: requestBody, timeout: 50) { result in
+                switch result {
+                case .success(let data):
+                    guard let jsonResponse = self.parseClaudeResponse(data) else {
+                        if retryCount > 0 {
+                            performRequest(retryCount: retryCount - 1)
+                        } else {
+                            completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
+                        }
+                        return
+                    }
                     if let reading = self.parseBloodPressureJSON(jsonResponse) {
                         completion(.success(reading))
+                        return
+                    }
+                    let extracted = self.extractBPJSON(from: jsonResponse)
+                    if let reading = extracted {
+                        completion(.success(reading))
+                        return
+                    }
+                    if retryCount > 0 {
+                        print("⚠️ [Claude Vision] Parse failed, retrying... Raw: \(jsonResponse.prefix(200))")
+                        performRequest(retryCount: retryCount - 1)
                     } else {
                         print("⚠️ [Claude Vision] Could not parse: \(jsonResponse)")
                         completion(.success(nil))
                     }
-                } else {
-                    completion(.failure(NSError(domain: "Claude", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])))
+                case .failure(let error):
+                    if retryCount > 0 {
+                        print("⚠️ [Claude Vision] Request failed, retrying: \(error.localizedDescription)")
+                        performRequest(retryCount: retryCount - 1)
+                    } else {
+                        completion(.failure(error))
+                    }
                 }
-            case .failure(let error):
-                completion(.failure(error))
             }
         }
+        performRequest(retryCount: 1)
+    }
+    
+    /// Slight contrast/brightness boost to make LCD digits easier to read
+    private func enhanceImageForBPReading(_ image: UIImage) -> UIImage {
+        guard let ciImage = CIImage(image: image) else { return image }
+        let filter = CIFilter(name: "CIColorControls")
+        filter?.setValue(ciImage, forKey: kCIInputImageKey)
+        filter?.setValue(1.15, forKey: kCIInputContrastKey)
+        filter?.setValue(0.05, forKey: kCIInputBrightnessKey)
+        guard let output = filter?.outputImage else { return image }
+        let context = CIContext(options: [.useSoftwareRenderer: false])
+        guard let cgImage = context.createCGImage(output, from: output.extent) else { return image }
+        return UIImage(cgImage: cgImage)
     }
     
     // MARK: - Claude HTTP Request
     private func makeClaudeRequest(
         body: [String: Any],
+        timeout: TimeInterval = 60,
         completion: @escaping (Result<Data, Error>) -> Void
     ) {
         guard let url = URL(string: anthropicEndpoint) else {
@@ -336,6 +391,7 @@ class OpenAIService {
         request.setValue(anthropicApiKey, forHTTPHeaderField: "x-api-key")
         request.setValue(anthropicVersion, forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = timeout
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -361,9 +417,13 @@ class OpenAIService {
             if httpResponse.statusCode == 200 {
                 completion(.success(data))
             } else {
-                let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]).flatMap { json in
-                    (json["error"] as? [String: Any])?["message"] as? String
-                } ?? "Request failed"
+                var message = "Request failed (\(httpResponse.statusCode))"
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let err = json["error"] as? [String: Any],
+                   let msg = err["message"] as? String {
+                    message = msg
+                }
+                print("❌ [Claude] API error: \(httpResponse.statusCode) \(message)")
                 completion(.failure(NSError(domain: "Claude", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])))
             }
         }.resume()
@@ -384,6 +444,18 @@ class OpenAIService {
         }
     }
     
+    private func resizeImageForVision(_ image: UIImage, maxLength: CGFloat) -> UIImage {
+        let size = image.size
+        guard size.width > maxLength || size.height > maxLength else { return image }
+        let ratio = min(maxLength / size.width, maxLength / size.height)
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        UIGraphicsBeginImageContextWithOptions(newSize, true, 1)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let resized = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return resized ?? image
+    }
+    
     private func parseBloodPressureJSON(_ jsonString: String) -> BloodPressureReading? {
         var cleaned = jsonString
             .replacingOccurrences(of: "```json", with: "")
@@ -396,16 +468,32 @@ class OpenAIService {
         }
         if json["error"] != nil { return nil }
         guard let systolic = json["systolic"] as? Int,
-              let diastolic = json["diastolic"] as? Int,
-              let pulse = json["pulse"] as? Int else {
+              let diastolic = json["diastolic"] as? Int else {
             return nil
         }
+        let pulse = (json["pulse"] as? Int) ?? 0
         return BloodPressureReading(
             systolic: systolic,
             diastolic: diastolic,
             pulse: pulse,
             source: "claude-vision"
         )
+    }
+    
+    /// Extract BP JSON from response that may contain extra text (e.g. "Here is the reading: {...}")
+    private func extractBPJSON(from text: String) -> BloodPressureReading? {
+        if let reading = parseBloodPressureJSON(text) { return reading }
+        let patterns = [
+            #"\{\s*"systolic"\s*:\s*\d+\s*,\s*"diastolic"\s*:\s*\d+\s*,\s*"pulse"\s*:\s*\d+\s*\}"#,
+            #"\{\s*"systolic"\s*:\s*\d+\s*,\s*"diastolic"\s*:\s*\d+\s*\}"#
+        ]
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                  let range = Range(match.range, in: text) else { continue }
+            if let reading = parseBloodPressureJSON(String(text[range])) { return reading }
+        }
+        return nil
     }
 }
 

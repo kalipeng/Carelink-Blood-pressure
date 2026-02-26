@@ -14,50 +14,50 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         window = UIWindow(windowScene: windowScene)
         
-        // 设置根视图控制器
+        // Set root view controller
         let tabBarController = createMainTabBarController()
         window?.rootViewController = tabBarController
         window?.makeKeyAndVisible()
         
-        // 强制亮色模式
+        // Force light mode
         window?.overrideUserInterfaceStyle = .light
     }
     
-    // MARK: - 创建主界面
+    // MARK: - Create main interface
     private func createMainTabBarController() -> UITabBarController {
         let tabBarController = UITabBarController()
         
-        // 主页
+        // Home
         let homeVC = HomeViewController()
         homeVC.tabBarItem = UITabBarItem(
-            title: "主页",
+            title: "Home",
             image: UIImage(systemName: "house.fill"),
             tag: 0
         )
         let homeNav = UINavigationController(rootViewController: homeVC)
         
-        // 测量
+        // Measure
         let measureVC = MeasureViewController()
         measureVC.tabBarItem = UITabBarItem(
-            title: "测量",
+            title: "Measure",
             image: UIImage(systemName: "heart.text.square.fill"),
             tag: 1
         )
         let measureNav = UINavigationController(rootViewController: measureVC)
         
-        // 历史
+        // History
         let historyVC = HistoryViewController()
         historyVC.tabBarItem = UITabBarItem(
-            title: "历史",
+            title: "History",
             image: UIImage(systemName: "chart.line.uptrend.xyaxis"),
             tag: 2
         )
         let historyNav = UINavigationController(rootViewController: historyVC)
         
-        // 设置
+        // Settings
         let settingsVC = SettingsViewController()
         settingsVC.tabBarItem = UITabBarItem(
-            title: "设置",
+            title: "Settings",
             image: UIImage(systemName: "gearshape.fill"),
             tag: 3
         )
@@ -65,10 +65,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         tabBarController.viewControllers = [homeNav, measureNav, historyNav, settingsNav]
         
-        // 默认选中主页
+        // Default to Home
         tabBarController.selectedIndex = 0
         
-        // 设置标签栏字体大小（老年人友好）
+        // Tab bar font size
         let attributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 16, weight: .medium)
         ]

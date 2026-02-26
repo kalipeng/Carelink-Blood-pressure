@@ -523,7 +523,22 @@ class HomeViewController: UIViewController {
     // MARK: - AI Voice Assistant Actions
     @objc private func micButtonTapped() {
         guard OpenAIService.shared.hasAPIKey() else {
+            VoiceService.shared.speak("Please add your Claude API key first.")
             configureAPITapped()
+            return
+        }
+        // Voice input uses OpenAI Whisper for speech-to-text.
+        if !OpenAIService.shared.hasOpenAIKey() {
+            let alert = UIAlertController(
+                title: "Voice input needs OpenAI key",
+                message: "To talk by voice, add an OpenAI API key (used to turn your speech into text). Claude key is for answers.\n\nTap Settings to add both keys.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            alert.addAction(UIAlertAction(title: "Settings", style: .default) { [weak self] _ in
+                self?.configureAPITapped()
+            })
+            present(alert, animated: true)
             return
         }
         
@@ -591,9 +606,10 @@ class HomeViewController: UIViewController {
                 case .failure(let error):
                     print("❌ [HomeVC] Transcription error: \(error)")
                     self?.resetMicButton()
-                    VoiceService.shared.speak("Sorry, I couldn't understand. Please try again.")
+                    let msg = (error as NSError).domain == "Whisper" ? "Voice input needs an OpenAI API key. Add it in Settings." : "Sorry, I couldn't hear clearly. Please try again."
+                    VoiceService.shared.speak(msg)
+                    self?.aiSubtitleLabel.text = error.localizedDescription
                 }
-                
                 AudioRecorderService.shared.deleteRecording(at: audioURL)
             }
         }
@@ -621,6 +637,12 @@ class HomeViewController: UIViewController {
                 case .failure(let error):
                     print("❌ [HomeVC] AI error: \(error)")
                     self?.aiGreetingLabel.text = "How can I help you today?"
+                    let msg = error.localizedDescription
+                    if msg.lowercased().contains("model") || msg.contains("404") || msg.contains("invalid") {
+                        self?.aiSubtitleLabel.text = "API or model error. Check Settings → Claude key and try again."
+                    } else {
+                        self?.aiSubtitleLabel.text = "Error: \(msg)"
+                    }
                     VoiceService.shared.speak("Sorry, I had trouble answering. Please try again.")
                 }
             }
@@ -642,7 +664,7 @@ class HomeViewController: UIViewController {
     @objc private func configureAPITapped() {
         let alert = UIAlertController(
             title: "API Keys",
-            message: "Claude key (required): chat + read BP from camera.\nOpenAI key (optional): voice input.",
+            message: "• Claude key (required): answers your questions + reads BP from camera.\n• OpenAI key (required for voice): turns your speech into text.\n\nGet Claude key: console.anthropic.com\nGet OpenAI key: platform.openai.com",
             preferredStyle: .alert
         )
         

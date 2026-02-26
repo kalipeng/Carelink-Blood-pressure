@@ -8,9 +8,16 @@
 
 import UIKit
 import AVFoundation
+import CoreImage
 import SwiftUI
 
 class MeasureViewController: UIViewController {
+    
+    /// Why we are capturing a photo: BP reading vs behavior-based AI guidance
+    private enum CaptureMode {
+        case bloodPressureReading
+        case behaviorGuidance
+    }
     
     // MARK: - Properties
     private var isMeasuring = false
@@ -20,7 +27,15 @@ class MeasureViewController: UIViewController {
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var photoOutput: AVCapturePhotoOutput?
+    private var videoDataOutput: AVCaptureVideoDataOutput?
+    private let videoDataQueue = DispatchQueue(label: "carelink.videoData")
+    /// Latest frame from camera for auto guidance (main thread only); updated every ~15 frames
+    private var latestCaptureFrame: UIImage?
+    private var videoFrameCount = 0
+    private var guidanceRequestInFlight = false
+    private var autoGuidanceTimer: Timer?
     private var currentCameraPosition: AVCaptureDevice.Position = .back
+    private var currentCaptureMode: CaptureMode = .bloodPressureReading
     
     // T-Mobile Pink color
     private let primaryColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0) // #E3007A
@@ -48,14 +63,16 @@ class MeasureViewController: UIViewController {
     
     // Header elements
     private let backButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("← Back", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        button.layer.cornerRadius = 8
-        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
-        return button
+        var config = UIButton.Configuration.plain()
+        config.title = "← Back"
+        config.baseForegroundColor = .white
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { _ in
+            AttributeContainer([.font: UIFont.systemFont(ofSize: 18, weight: .medium)])
+        }
+        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+        config.background.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        config.background.cornerRadius = 8
+        return UIButton(configuration: config)
     }()
     
     private let titleLabel: UILabel = {
@@ -209,25 +226,42 @@ class MeasureViewController: UIViewController {
     
     // Bottom buttons
     private let manualEntryButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("✏️ Enter Manually Instead", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
-        button.setTitleColor(UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0), for: .normal)
-        button.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 0.1)
-        button.layer.cornerRadius = 12
-        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
-        return button
+        var config = UIButton.Configuration.plain()
+        config.title = "✏️ Enter Manually Instead"
+        config.baseForegroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { _ in
+            AttributeContainer([.font: UIFont.systemFont(ofSize: 15, weight: .medium)])
+        }
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20)
+        config.background.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 0.1)
+        config.background.cornerRadius = 12
+        return UIButton(configuration: config)
     }()
     
     private let voiceInputButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("🎤 Voice Input", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = UIColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0)
-        button.layer.cornerRadius = 12
-        button.contentEdgeInsets = UIEdgeInsets(top: 12, left: 20, bottom: 12, right: 20)
-        return button
+        var config = UIButton.Configuration.plain()
+        config.title = "🎤 Voice Input"
+        config.baseForegroundColor = .white
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { _ in
+            AttributeContainer([.font: UIFont.systemFont(ofSize: 15, weight: .medium)])
+        }
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20)
+        config.background.backgroundColor = UIColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0)
+        config.background.cornerRadius = 12
+        return UIButton(configuration: config)
+    }()
+    
+    private let aiGuidanceButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.title = "AI Guidance"
+        config.baseForegroundColor = .white
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { _ in
+            AttributeContainer([.font: UIFont.systemFont(ofSize: 15, weight: .medium)])
+        }
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+        config.background.backgroundColor = UIColor(red: 0.2, green: 0.5, blue: 0.3, alpha: 1.0)
+        config.background.cornerRadius = 12
+        return UIButton(configuration: config)
     }()
     
     // MARK: - Lifecycle
@@ -245,12 +279,15 @@ class MeasureViewController: UIViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.startGuidance()
         }
+        // Auto AI guidance every 5s (first run after 5s so we have frames)
+        startAutoGuidanceTimer()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         stopCameraSession()
         stopTimer()
+        stopAutoGuidanceTimer()
     }
     
     override func viewDidLayoutSubviews() {
@@ -290,6 +327,7 @@ class MeasureViewController: UIViewController {
         instructionPanelView.addSubview(analyzingLabel)
         instructionPanelView.addSubview(manualEntryButton)
         instructionPanelView.addSubview(voiceInputButton)
+        instructionPanelView.addSubview(aiGuidanceButton)
         
         // Button actions
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
@@ -297,6 +335,7 @@ class MeasureViewController: UIViewController {
         cameraSwitchButton.addTarget(self, action: #selector(switchCameraTapped), for: .touchUpInside)
         manualEntryButton.addTarget(self, action: #selector(manualEntryTapped), for: .touchUpInside)
         voiceInputButton.addTarget(self, action: #selector(voiceInputTapped), for: .touchUpInside)
+        aiGuidanceButton.addTarget(self, action: #selector(aiGuidanceTapped), for: .touchUpInside)
         
         setupConstraints()
     }
@@ -307,7 +346,7 @@ class MeasureViewController: UIViewController {
          backButton, titleLabel, timerLabel, cameraSwitchButton, captureButton,
          instructionPanelView, bpIconLabel, panelTitleLabel, panelSubtitleLabel,
          stepContainerView, stepProgressLabel, stepTextLabel, analyzingLabel,
-         manualEntryButton, voiceInputButton].forEach {
+         manualEntryButton, voiceInputButton, aiGuidanceButton].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
         
@@ -408,11 +447,16 @@ class MeasureViewController: UIViewController {
             // Voice input button
             voiceInputButton.centerYAnchor.constraint(equalTo: manualEntryButton.centerYAnchor),
             voiceInputButton.leadingAnchor.constraint(equalTo: manualEntryButton.trailingAnchor, constant: 12),
+            
+            // AI guidance (behavior-based from camera)
+            aiGuidanceButton.centerYAnchor.constraint(equalTo: manualEntryButton.centerYAnchor),
+            aiGuidanceButton.leadingAnchor.constraint(equalTo: voiceInputButton.trailingAnchor, constant: 12),
         ])
     }
     
     // MARK: - Step Display
     private func updateStepDisplay(to stepIndex: Int, animated: Bool = true) {
+        guard stepIndex >= 0, stepIndex < steps.count else { return }
         let animationBlock = {
             // Update progress label
             self.stepProgressLabel.text = "\(stepIndex + 1)/5"
@@ -492,23 +536,30 @@ class MeasureViewController: UIViewController {
                 captureSession?.addInput(input)
             }
             
-            // Only add output once
+            // Only add outputs once
             if photoOutput == nil {
                 photoOutput = AVCapturePhotoOutput()
                 if let photoOutput = photoOutput, captureSession?.canAddOutput(photoOutput) == true {
                     captureSession?.addOutput(photoOutput)
                 }
             }
+            if videoDataOutput == nil {
+                let videoOut = AVCaptureVideoDataOutput()
+                videoOut.setSampleBufferDelegate(self, queue: videoDataQueue)
+                videoOut.alwaysDiscardsLateVideoFrames = true
+                if captureSession?.canAddOutput(videoOut) == true {
+                    captureSession?.addOutput(videoOut)
+                    videoDataOutput = videoOut
+                }
+            }
             
             // Only add preview layer once
-            if previewLayer == nil {
-                previewLayer = AVCaptureVideoPreviewLayer(session: captureSession!)
-                previewLayer?.videoGravity = .resizeAspectFill
-                previewLayer?.frame = cameraContainerView.bounds
-                
-                if let previewLayer = previewLayer {
-                    cameraContainerView.layer.insertSublayer(previewLayer, at: 0)
-                }
+            if previewLayer == nil, let session = captureSession {
+                let layer = AVCaptureVideoPreviewLayer(session: session)
+                layer.videoGravity = .resizeAspectFill
+                layer.frame = cameraContainerView.bounds
+                cameraContainerView.layer.insertSublayer(layer, at: 0)
+                previewLayer = layer
             }
             
             cameraPlaceholderView.isHidden = true
@@ -532,13 +583,69 @@ class MeasureViewController: UIViewController {
     }
     
     private func startCameraSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.captureSession?.startRunning()
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.captureSession?.startRunning()
+            }
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            self?.captureSession?.startRunning()
+                        }
+                    } else {
+                        self?.cameraErrorLabel.text = "Please allow camera access in Settings\nor use manual entry"
+                        self?.cameraPlaceholderView.isHidden = false
+                    }
+                }
+            }
+        case .denied, .restricted:
+            cameraErrorLabel.text = "Please allow camera access in Settings\nor use manual entry"
+            cameraPlaceholderView.isHidden = false
+        @unknown default:
+            break
         }
     }
     
     private func stopCameraSession() {
         captureSession?.stopRunning()
+    }
+    
+    // MARK: - Auto guidance (every 5 seconds from video stream)
+    private func startAutoGuidanceTimer() {
+        stopAutoGuidanceTimer()
+        autoGuidanceTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.tickAutoGuidance()
+        }
+        RunLoop.main.add(autoGuidanceTimer!, forMode: .common)
+    }
+    
+    private func stopAutoGuidanceTimer() {
+        autoGuidanceTimer?.invalidate()
+        autoGuidanceTimer = nil
+    }
+    
+    private func tickAutoGuidance() {
+        guard OpenAIService.shared.hasAPIKey(),
+              !guidanceRequestInFlight,
+              let frame = latestCaptureFrame else { return }
+        guidanceRequestInFlight = true
+        OpenAIService.shared.analyzeMeasurementGuidance(image: frame) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.guidanceRequestInFlight = false
+                switch result {
+                case .success(let guidance):
+                    let text = guidance.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty {
+                        VoiceService.shared.speak(text)
+                    }
+                case .failure:
+                    break
+                }
+            }
+        }
     }
     
     // MARK: - Timer
@@ -633,7 +740,7 @@ class MeasureViewController: UIViewController {
     private func startMeasurementCountdown() {
         // Wait 30 seconds, then give a progress update
         DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak self] in
-            guard let self = self, self.isMeasuring, self.currentStep == 3 else { return }
+            guard let strongSelf = self, strongSelf.isMeasuring, strongSelf.currentStep == 3 else { return }
             VoiceService.shared.speak("Keep waiting. The measurement should finish soon.")
         }
         
@@ -653,6 +760,27 @@ class MeasureViewController: UIViewController {
     }
     
     // MARK: - Capture & Vision
+    @objc private func aiGuidanceTapped() {
+        guard OpenAIService.shared.hasAPIKey() else {
+            VoiceService.shared.speak("Please configure your Claude API key in Settings first.")
+            showAPIKeyAlert()
+            return
+        }
+        guard let photoOutput = photoOutput else {
+            VoiceService.shared.speak("Camera not available.")
+            return
+        }
+        currentCaptureMode = .behaviorGuidance
+        aiGuidanceButton.isEnabled = false
+        var config = aiGuidanceButton.configuration ?? UIButton.Configuration.plain()
+        config.title = "…"
+        aiGuidanceButton.configuration = config
+        analyzingLabel.text = "Getting AI tip..."
+        analyzingLabel.isHidden = false
+        let settings = AVCapturePhotoSettings()
+        photoOutput.capturePhoto(with: settings, delegate: self)
+    }
+    
     @objc private func captureReading() {
         // Check if API key is configured
         guard OpenAIService.shared.hasAPIKey() else {
@@ -667,6 +795,7 @@ class MeasureViewController: UIViewController {
             return
         }
         
+        currentCaptureMode = .bloodPressureReading
         captureButton.isEnabled = false
         captureButton.setTitle("Analyzing...", for: .normal)
         showAnalyzingState()
@@ -739,7 +868,7 @@ class MeasureViewController: UIViewController {
             self?.handleMeasurementComplete(systolic: systolic, diastolic: diastolic, pulse: pulse, source: "vision")
         })
         
-        alert.addAction(UIAlertAction(title: "✗ Wrong, Re-capture", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "✗ Wrong, Re-capture", style: .default) { _ in
             VoiceService.shared.speak("Please point the camera at the screen again and tap capture.")
         })
         
@@ -1004,25 +1133,78 @@ extension MeasureViewController: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
             print("❌ [Camera] Photo capture error: \(error)")
-            hideAnalyzingState()
-            captureButton.isEnabled = true
-            captureButton.setTitle("📸 Capture Reading", for: .normal)
-            showManualEntryAlert()
+            if currentCaptureMode == .behaviorGuidance {
+                resetAIGuidanceButton()
+            } else {
+                hideAnalyzingState()
+                captureButton.isEnabled = true
+                captureButton.setTitle("📸 Capture Reading", for: .normal)
+                showManualEntryAlert()
+            }
             return
         }
         
         guard let imageData = photo.fileDataRepresentation(),
               let image = UIImage(data: imageData) else {
             print("❌ [Camera] Could not get image data")
-            hideAnalyzingState()
-            captureButton.isEnabled = true
-            captureButton.setTitle("📸 Capture Reading", for: .normal)
-            showManualEntryAlert()
+            if currentCaptureMode == .behaviorGuidance {
+                resetAIGuidanceButton()
+            } else {
+                hideAnalyzingState()
+                captureButton.isEnabled = true
+                captureButton.setTitle("📸 Capture Reading", for: .normal)
+                showManualEntryAlert()
+            }
+            return
+        }
+        
+        if currentCaptureMode == .behaviorGuidance {
+            currentCaptureMode = .bloodPressureReading
+            print("📸 [Camera] Photo for behavior guidance, calling Claude...")
+            OpenAIService.shared.analyzeMeasurementGuidance(image: image) { [weak self] result in
+                DispatchQueue.main.async {
+                    self?.resetAIGuidanceButton()
+                    switch result {
+                    case .success(let guidance):
+                        let text = guidance.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !text.isEmpty {
+                            VoiceService.shared.speak(text)
+                        }
+                    case .failure(let err):
+                        VoiceService.shared.speak("Sorry, I couldn't get a tip right now. Try again.")
+                        print("❌ [Guidance] \(err.localizedDescription)")
+                    }
+                }
+            }
             return
         }
         
         print("📸 [Camera] Photo captured, sending to Vision API...")
         analyzeImageWithVision(image)
+    }
+    
+    private func resetAIGuidanceButton() {
+        analyzingLabel.isHidden = true
+        aiGuidanceButton.isEnabled = true
+        var config = aiGuidanceButton.configuration ?? UIButton.Configuration.plain()
+        config.title = "AI Guidance"
+        aiGuidanceButton.configuration = config
+    }
+}
+
+// MARK: - AVCaptureVideoDataOutputSampleBufferDelegate (for 5s auto guidance)
+extension MeasureViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        videoFrameCount += 1
+        guard videoFrameCount % 15 == 0,
+              let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let context = CIContext(options: [.useSoftwareRenderer: false])
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
+        let image = UIImage(cgImage: cgImage)
+        DispatchQueue.main.async { [weak self] in
+            self?.latestCaptureFrame = image
+        }
     }
 }
 

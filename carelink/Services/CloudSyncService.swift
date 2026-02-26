@@ -2,8 +2,10 @@
 //  CloudSyncService.swift
 //  carelink
 //
-//  Uploads blood pressure to Next.js API → Firebase (Vercel)
-//  API: POST /api/blood-pressure with patientId, systolic, diastolic, pulse, source, deviceId
+//  Uploads blood pressure to CareLink Clinician Dashboard API (Vercel).
+//  API: POST /api/blood-pressure
+//  Doc: patientId(必填), systolic(60-300), diastolic(40-200), pulse(可选), source(可选默认 patient-app), deviceId(可选), patientNote(可选)
+//  成功: 201 { success: true, reading: { ... } }
 //
 
 import Foundation
@@ -12,20 +14,21 @@ class CloudSyncService {
 
     static let shared = CloudSyncService()
 
-    /// Next.js API base URL (CareLink Clinician Dashboard)
+    /// API base URL (CareLink Clinician Dashboard)
+    /// 默认: https://carelinkclinician-dashboard-main.vercel.app
     var baseURL: String {
         get {
-            UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://carelink-clinician-dashboard-hdld.vercel.app"
+            UserDefaults.standard.string(forKey: "apiBaseURL") ?? "https://carelinkclinician-dashboard-main.vercel.app"
         }
         set {
             UserDefaults.standard.set(newValue, forKey: "apiBaseURL")
         }
     }
 
-    /// Patient ID for uploads (required by API, e.g. P-2025-001)
+    /// Patient ID（必填，用于接口 patientId；在 设置 → 患者 ID 中配置）
     var patientId: String {
         get {
-            UserDefaults.standard.string(forKey: "patientId") ?? "P-2025-001"
+            UserDefaults.standard.string(forKey: "patientId") ?? "P-2025-005"
         }
         set {
             UserDefaults.standard.set(newValue, forKey: "patientId")
@@ -34,27 +37,28 @@ class CloudSyncService {
 
     private init() {}
 
-    // MARK: - Upload (single reading → Firebase via your API)
+    // MARK: - Upload (single reading)
 
-    /// POST to your Next.js API: /api/blood-pressure
-    /// API writes to Firestore; Dashboard gets real-time updates via onSnapshot.
-    func uploadReading(_ reading: BloodPressureReading, completion: ((Bool, String?) -> Void)? = nil) {
+    /// POST /api/blood-pressure
+    /// Content-Type: application/json
+    /// Body: patientId, systolic, diastolic, pulse?, source?, deviceId?, patientNote?
+    func uploadReading(_ reading: BloodPressureReading, patientNote: String? = nil, completion: ((Bool, String?) -> Void)? = nil) {
         let urlString = baseURL.hasSuffix("/") ? "\(baseURL)api/blood-pressure" : "\(baseURL)/api/blood-pressure"
         guard let url = URL(string: urlString) else {
             completion?(false, "Invalid API URL")
             return
         }
 
-        // Request body per your API spec
+        // 始终传 patientNote 为字符串，避免后端写入 Firestore 时出现 undefined 导致 500
         var body: [String: Any] = [
             "patientId": patientId,
             "systolic": reading.systolic,
             "diastolic": reading.diastolic,
             "pulse": reading.pulse,
             "source": mapSource(reading.source),
-            "deviceId": "ios_app"
+            "deviceId": "ios-app",
+            "patientNote": (patientNote?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? ""
         ]
-
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -81,12 +85,20 @@ class CloudSyncService {
                 return
             }
 
+            let rawBody = String(data: data ?? Data(), encoding: .utf8) ?? ""
             if (200...299).contains(httpResponse.statusCode) {
-                print("✅ [Cloud] Upload success (\(httpResponse.statusCode))")
+                // 只有 HTTP 2xx 且响应里 success == true 才视为真正成功（后端可能返回 200 但 success: false）
+                if let json = (try? JSONSerialization.jsonObject(with: data ?? Data())) as? [String: Any],
+                   let success = json["success"] as? Bool, !success {
+                    let errMsg = (json["error"] as? String) ?? (json["message"] as? String) ?? rawBody
+                    print("❌ [Cloud] API returned success: false — \(errMsg)")
+                    completion?(false, errMsg)
+                    return
+                }
+                print("✅ [Cloud] Upload success (\(httpResponse.statusCode)) → \(rawBody.prefix(200))")
                 completion?(true, nil)
             } else {
-                let raw = String(data: data ?? Data(), encoding: .utf8) ?? ""
-                let message = raw.isEmpty ? "HTTP \(httpResponse.statusCode)" : raw
+                let message = rawBody.isEmpty ? "HTTP \(httpResponse.statusCode)" : rawBody
                 let full = "Status \(httpResponse.statusCode). \(message)"
                 print("❌ [Cloud] API error: \(full)")
                 completion?(false, full)

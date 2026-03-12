@@ -121,10 +121,96 @@ carelink/
 
 ---
 
+## Clinician Dashboard
+
+A separate web application provides a clinician-facing hypertension Remote Patient Monitoring (RPM) dashboard.
+
+> **Important:** This project is a demo/MVP for product validation. Do not use with real PHI or production clinical workflows without security and compliance hardening.
+
+### Current Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | **Clinician Auth** | Login/logout with session persisted in localStorage; protected pages via `AuthProvider` + route redirect |
+| 2 | **Patient Overview** (`/`) | Risk-priority patient list, latest BP per patient, daily aggregate support, Add Patient drawer |
+| 3 | **Patient Details** (`/patients/[id]`) | BP history charts, recent readings table, medication list, Adjust Medication drawer, PDF report export |
+| 4 | **Alert Management** | Alert triage workflow, state updates, messaging entry points |
+| 5 | **BP Reminders** | Email delivery via Resend API; SMS path returns demo response (no provider wired yet) |
+
+**Demo login**
+```
+Email:    sarah.chen@carelink.health
+Password: carelink2025
+```
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript + React 19 |
+| Styling | Tailwind CSS |
+| Charts | Recharts |
+| PDF Export | jsPDF + html2canvas |
+| Database | Firebase Firestore + Firebase Admin SDK |
+| Email | Resend REST API |
+
+### API Routes
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET / POST | `/api/patients` | List or create patients |
+| GET / PUT / DELETE | `/api/patients/[id]` | Patient profile, update, delete |
+| GET / POST | `/api/readings` | Reading retrieval and ingest |
+| POST | `/api/blood-pressure` | iOS-compatible BP ingest alias |
+| GET / PATCH | `/api/alerts` | Alert list and state updates |
+| GET / POST / DELETE | `/api/notes` | Clinician notes |
+| POST | `/api/reminders` | Email reminder (Resend) + SMS demo |
+
+### Local Setup
+
+```bash
+cd carelink_clinician-dashboard-main
+npm install
+npm run dev
+# Open http://localhost:3000
+```
+
+Copy `.env.example` to `.env.local` and fill in Firebase + Resend keys.
+Without Firebase admin config the app runs in demo fallback mode.
+
+### Project Structure
+
+```
+src/
+  app/
+    login/page.tsx
+    page.tsx                        # Patient overview dashboard
+    alerts/page.tsx
+    messages/page.tsx
+    analytics/page.tsx
+    patients/[id]/page.tsx
+    api/                            # All API route handlers
+  components/
+    Header.tsx  Sidebar.tsx  AppShell.tsx
+    ui/Drawer.tsx
+    drawers/TreatmentPlanDrawer.tsx
+  contexts/AuthContext.tsx
+  lib/firebase-admin.ts
+```
+
+### Security & Compliance Notes
+
+- Demo-oriented auth/session behavior — no HIPAA-grade audit trail yet
+- No enterprise IAM integration
+- **Do not store real patient PHI until security controls are implemented**
+
+---
+
 ## Related Components
 
 | Branch / Folder | Platform | Description |
 |-----------------|----------|-------------|
 | `ios-carelink` | iOS (Swift) | This app |
-| `carelink_clinician-dashboard-main` | Web (React) | Clinician-facing dashboard |
+| `carelink_clinician-dashboard-main` | Web (Next.js) | Clinician-facing RPM dashboard |
 | `api` | Python / Raspberry Pi | Backend REST API |

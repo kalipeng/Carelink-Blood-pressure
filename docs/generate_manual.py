@@ -575,6 +575,95 @@ def build_pdf():
     story.append(PageBreak())
 
     # ════════════════════════════════════════════════════════════════
+    # 6b. CLINICIAN DASHBOARD
+    # ════════════════════════════════════════════════════════════════
+    story.append(Paragraph("6b. Clinician Dashboard", S["h1"]))
+    story.append(divider())
+    story.append(Paragraph(
+        "CareLink includes a separate web-based dashboard for clinicians to monitor patients "
+        "remotely, review blood pressure trends, manage medications, and send care reminders. "
+        "It is built with Next.js 16 (App Router) and Firebase Firestore.",
+        S["body"]))
+    story.append(Paragraph(
+        "⚠  Important: This dashboard is a demo/MVP for product validation. Do not use with "
+        "real PHI or production clinical workflows without security and compliance hardening.",
+        ParagraphStyle("Warn", fontSize=10, fontName="Helvetica-Bold",
+                       textColor=DARK_PINK, backColor=LIGHT_PINK,
+                       spaceAfter=8, spaceBefore=4, leading=15,
+                       leftIndent=10, rightIndent=10)))
+
+    story.append(Paragraph("Features", S["h2"]))
+    dash_features = [
+        ["#", "Feature", "Description"],
+        ["1", "Clinician Auth", "Login/logout with session in localStorage; protected pages via AuthProvider and route redirect"],
+        ["2", "Patient Overview (/)", "Risk-priority patient list, latest BP per patient, daily aggregate support, Add Patient drawer"],
+        ["3", "Patient Details (/patients/[id])", "BP history charts, readings table, medication list, Adjust Medication drawer, PDF report export"],
+        ["4", "Alert Management", "Alert triage workflow, state updates, messaging entry points from all pages"],
+        ["5", "BP Reminders", "Email delivery via Resend API; SMS path returns demo success response"],
+    ]
+    story.append(make_table(dash_features, [0.3*inch, 1.8*inch, 4.6*inch]))
+
+    story.append(Paragraph("Demo Login Credentials", S["h2"]))
+    story.append(Paragraph("Email: sarah.chen@carelink.health", S["code"]))
+    story.append(Paragraph("Password: carelink2025", S["code"]))
+
+    story.append(Paragraph("Tech Stack", S["h2"]))
+    dash_tech = [
+        ["Layer", "Technology"],
+        ["Framework", "Next.js 16 (App Router)"],
+        ["Language", "TypeScript + React 19"],
+        ["Styling", "Tailwind CSS"],
+        ["Charts", "Recharts"],
+        ["PDF Export", "jsPDF + html2canvas"],
+        ["Database", "Firebase Firestore + Firebase Admin SDK"],
+        ["Email", "Resend REST API"],
+    ]
+    story.append(make_table(dash_tech, [2.0*inch, 4.7*inch]))
+
+    story.append(Paragraph("API Routes", S["h2"]))
+    api_routes = [
+        ["Method", "Route", "Purpose"],
+        ["GET / POST", "/api/patients", "List or create patients"],
+        ["GET / PUT / DELETE", "/api/patients/[id]", "Patient profile, update, delete"],
+        ["GET / POST", "/api/readings", "Reading retrieval and ingest"],
+        ["POST", "/api/blood-pressure", "iOS-compatible BP ingest alias"],
+        ["GET / PATCH", "/api/alerts", "Alert list and state updates"],
+        ["GET / POST / DELETE", "/api/notes", "Clinician notes CRUD"],
+        ["POST", "/api/reminders", "Email reminder (Resend) + SMS demo"],
+    ]
+    story.append(make_table(api_routes, [1.5*inch, 2.0*inch, 3.2*inch]))
+
+    story.append(Paragraph("Local Setup", S["h2"]))
+    dash_steps = [
+        ("1", "Navigate to dashboard folder",
+         "cd carelink_clinician-dashboard-main"),
+        ("2", "Install dependencies",
+         "npm install"),
+        ("3", "Configure environment variables",
+         "Copy .env.example to .env.local and fill in Firebase project credentials "
+         "and your Resend API key. Without Firebase admin config the app runs in demo fallback mode."),
+        ("4", "Start development server",
+         "npm run dev\nOpen http://localhost:3000 in your browser."),
+        ("5", "Log in",
+         "Use the demo credentials above or configure your own Firestore-backed clinician accounts."),
+    ]
+    for num, title, detail in dash_steps:
+        story.append(step(num, title, detail, S))
+        story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Security & Compliance Notes", S["h2"]))
+    for item in [
+        "Demo-oriented auth/session behavior — no HIPAA-grade audit trail or enterprise IAM integration.",
+        "Do not store real patient PHI (Protected Health Information) until security controls are implemented.",
+        "The Resend API key must be kept private and never committed to source control.",
+        "Firebase Admin SDK credentials (service account JSON) must never be committed to the repository.",
+        "In production, replace localStorage session persistence with a secure, server-side session mechanism.",
+    ]:
+        story.append(Paragraph(f"• {item}", S["bullet"]))
+
+    story.append(PageBreak())
+
+    # ════════════════════════════════════════════════════════════════
     # 7. TROUBLESHOOTING
     # ════════════════════════════════════════════════════════════════
     story.append(Paragraph("7. Troubleshooting", S["h1"]))

@@ -36,6 +36,9 @@ class MeasureViewController: UIViewController {
     private var autoGuidanceTimer: Timer?
     private var currentCameraPosition: AVCaptureDevice.Position = .back
     private var currentCaptureMode: CaptureMode = .bloodPressureReading
+    /// Auto-capture countdown timer (fires when elderly reaches Step 5)
+    private var autoCaptureTimer: Timer?
+    private var autoCaptureCountdown = 0
     
     // T-Mobile Pink color
     private let primaryColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0) // #E3007A
@@ -130,18 +133,18 @@ class MeasureViewController: UIViewController {
         return label
     }()
     
-    // Capture button (centered on camera)
+    // Capture button (centered on camera) – large, easy to tap
     private let captureButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("📸 Capture Reading", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
+        button.setTitle("Take Photo", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 28, weight: .heavy)
         button.setTitleColor(.white, for: .normal)
         button.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0)
-        button.layer.cornerRadius = 28
-        button.layer.shadowColor = UIColor.black.cgColor
-        button.layer.shadowOpacity = 0.3
-        button.layer.shadowOffset = CGSize(width: 0, height: 4)
-        button.layer.shadowRadius = 8
+        button.layer.cornerRadius = 40
+        button.layer.shadowColor = UIColor(red: 0.89, green: 0, blue: 0.48, alpha: 1.0).cgColor
+        button.layer.shadowOpacity = 0.6
+        button.layer.shadowOffset = CGSize(width: 0, height: 6)
+        button.layer.shadowRadius = 14
         return button
     }()
     
@@ -395,9 +398,9 @@ class MeasureViewController: UIViewController {
             
             // Capture button (bottom of camera area)
             captureButton.centerXAnchor.constraint(equalTo: cameraContainerView.centerXAnchor),
-            captureButton.bottomAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -24),
-            captureButton.heightAnchor.constraint(equalToConstant: 56),
-            captureButton.widthAnchor.constraint(equalToConstant: 220),
+            captureButton.bottomAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -20),
+            captureButton.heightAnchor.constraint(equalToConstant: 80),
+            captureButton.widthAnchor.constraint(equalToConstant: 300),
             
             // Instruction panel (bottom 28%)
             instructionPanelView.topAnchor.constraint(equalTo: cameraContainerView.bottomAnchor, constant: -16),
@@ -701,6 +704,7 @@ class MeasureViewController: UIViewController {
         stopTimer()
         elapsedSeconds = 0
         updateTimerLabel()
+        cancelAutoCaptureTimer()
         
         currentStep = 0
         updateStepDisplay(to: 0, animated: false)
@@ -731,8 +735,10 @@ class MeasureViewController: UIViewController {
                 // Continue advancing
                 self.advanceStepsAutomatically()
             } else {
-                // On last step - wait for capture
-                VoiceService.shared.speak("When the numbers appear on your monitor, point the camera at the screen and tap Capture Reading.")
+                // On last step – start pulse and auto-capture countdown
+                VoiceService.shared.speak("Point the camera at the monitor screen. I will take the photo automatically in 10 seconds, or tap Take Photo now.")
+                self.startCaptureButtonPulse()
+                self.startAutoCaptureCountdown()
             }
         }
     }
@@ -752,11 +758,69 @@ class MeasureViewController: UIViewController {
             self.updateStepDisplay(to: self.currentStep)
             VoiceService.shared.speak("Step 5: \(self.steps[self.currentStep])")
             
-            // Last step - wait for user to capture
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                VoiceService.shared.speak("When the numbers appear on your monitor, point the camera at the screen and tap Capture Reading.")
+            // Last step – show big pulsing button and start auto-capture countdown
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                guard let self = self else { return }
+                VoiceService.shared.speak("Point the camera at the blood pressure monitor screen. I will take the photo automatically in 10 seconds, or tap Take Photo now.")
+                self.startCaptureButtonPulse()
+                self.startAutoCaptureCountdown()
             }
         }
+    }
+    
+    // MARK: - Capture Button Pulse & Auto-capture
+    private func startCaptureButtonPulse() {
+        captureButton.layer.removeAllAnimations()
+        let pulse = CABasicAnimation(keyPath: "transform.scale")
+        pulse.fromValue = 1.0
+        pulse.toValue = 1.12
+        pulse.duration = 0.6
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        captureButton.layer.add(pulse, forKey: "pulse")
+        
+        // Also glow the shadow
+        let glow = CABasicAnimation(keyPath: "shadowOpacity")
+        glow.fromValue = 0.4
+        glow.toValue = 1.0
+        glow.duration = 0.6
+        glow.autoreverses = true
+        glow.repeatCount = .infinity
+        captureButton.layer.add(glow, forKey: "glow")
+    }
+    
+    private func stopCaptureButtonPulse() {
+        captureButton.layer.removeAnimation(forKey: "pulse")
+        captureButton.layer.removeAnimation(forKey: "glow")
+    }
+    
+    private func startAutoCaptureCountdown() {
+        autoCaptureCountdown = 10
+        autoCaptureTimer?.invalidate()
+        autoCaptureTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.autoCaptureCountdown -= 1
+            if self.autoCaptureCountdown > 0 {
+                let label = self.autoCaptureCountdown <= 3 ? "\(self.autoCaptureCountdown)..." : nil
+                if let label = label {
+                    DispatchQueue.main.async {
+                        self.captureButton.setTitle("Take Photo (\(label))", for: .normal)
+                    }
+                }
+            } else {
+                self.autoCaptureTimer?.invalidate()
+                self.autoCaptureTimer = nil
+                self.captureReading()
+            }
+        }
+    }
+    
+    private func cancelAutoCaptureTimer() {
+        autoCaptureTimer?.invalidate()
+        autoCaptureTimer = nil
+        stopCaptureButtonPulse()
+        captureButton.setTitle("Take Photo", for: .normal)
     }
     
     // MARK: - Capture & Vision
@@ -795,6 +859,7 @@ class MeasureViewController: UIViewController {
             return
         }
         
+        cancelAutoCaptureTimer()
         currentCaptureMode = .bloodPressureReading
         captureButton.isEnabled = false
         captureButton.setTitle("Analyzing...", for: .normal)
@@ -827,7 +892,7 @@ class MeasureViewController: UIViewController {
         OpenAIService.shared.analyzeBloodPressureImage(image: image) { [weak self] result in
             DispatchQueue.main.async {
                 self?.captureButton.isEnabled = true
-                self?.captureButton.setTitle("📸 Capture Reading", for: .normal)
+                self?.captureButton.setTitle("Take Photo", for: .normal)
                 self?.hideAnalyzingState()
                 
                 switch result {
@@ -1138,7 +1203,7 @@ extension MeasureViewController: AVCapturePhotoCaptureDelegate {
             } else {
                 hideAnalyzingState()
                 captureButton.isEnabled = true
-                captureButton.setTitle("📸 Capture Reading", for: .normal)
+                captureButton.setTitle("Take Photo", for: .normal)
                 showManualEntryAlert()
             }
             return
@@ -1152,7 +1217,7 @@ extension MeasureViewController: AVCapturePhotoCaptureDelegate {
             } else {
                 hideAnalyzingState()
                 captureButton.isEnabled = true
-                captureButton.setTitle("📸 Capture Reading", for: .normal)
+                captureButton.setTitle("Take Photo", for: .normal)
                 showManualEntryAlert()
             }
             return

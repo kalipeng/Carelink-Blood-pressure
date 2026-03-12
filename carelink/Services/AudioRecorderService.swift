@@ -17,6 +17,10 @@ class AudioRecorderService: NSObject {
     private var recordingURL: URL?
     
     private var recordingCompletion: ((URL?) -> Void)?
+    private var silenceCheckTimer: Timer?
+    private var silenceStartTime: Date?
+    private static let silenceThresholdDB: Float = -40
+    private static let silenceDurationToStop: TimeInterval = 2.0
     
     var isRecording: Bool {
         return audioRecorder?.isRecording ?? false
@@ -76,7 +80,10 @@ class AudioRecorderService: NSObject {
         do {
             audioRecorder = try AVAudioRecorder(url: audioFilename, settings: settings)
             audioRecorder?.delegate = self
+            audioRecorder?.isMeteringEnabled = true
             audioRecorder?.record()
+            silenceStartTime = nil
+            startSilenceCheckTimer()
             print("🎙️ [Audio] Recording started: \(audioFilename.lastPathComponent)")
         } catch {
             print("❌ [Audio] Failed to start recording: \(error)")
@@ -86,9 +93,39 @@ class AudioRecorderService: NSObject {
     
     /// Stop recording and get the audio file URL
     func stopRecording() {
+        stopSilenceCheckTimer()
         if audioRecorder?.isRecording == true {
             audioRecorder?.stop()
             print("⏹️ [Audio] Recording stopped")
+        }
+    }
+    
+    private func startSilenceCheckTimer() {
+        stopSilenceCheckTimer()
+        silenceStartTime = nil
+        silenceCheckTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.checkSilence()
+        }
+        RunLoop.main.add(silenceCheckTimer!, forMode: .common)
+    }
+    
+    private func stopSilenceCheckTimer() {
+        silenceCheckTimer?.invalidate()
+        silenceCheckTimer = nil
+    }
+    
+    private func checkSilence() {
+        guard let recorder = audioRecorder, recorder.isRecording else { return }
+        recorder.updateMeters()
+        let power = recorder.averagePower(forChannel: 0)
+        if power < Self.silenceThresholdDB {
+            if silenceStartTime == nil {
+                silenceStartTime = Date()
+            } else if Date().timeIntervalSince(silenceStartTime!) >= Self.silenceDurationToStop {
+                stopRecording()
+            }
+        } else {
+            silenceStartTime = nil
         }
     }
     

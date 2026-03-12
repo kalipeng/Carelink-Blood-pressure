@@ -11,6 +11,8 @@ import SwiftUI
 class HistoryViewController: UIViewController {
     
     private var readings: [BloodPressureReading] = []
+    /// Grouped by calendar day (newest first). Each element: (startOfDay, readings for that day)
+    private var sections: [(date: Date, readings: [BloodPressureReading])] = []
     
     private let backButton: UIButton = {
         var config = UIButton.Configuration.plain()
@@ -50,6 +52,15 @@ class HistoryViewController: UIViewController {
         return table
     }()
     
+    private let tipLabel: UILabel = {
+        let label = UILabel()
+        label.text = "We recommend up to 5 readings per day for better tracking."
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 14, regular: 16, large: 18))
+        label.textColor = UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1.0)
+        label.numberOfLines = 0
+        return label
+    }()
+    
     private let emptyStateLabel: UILabel = {
         let label = UILabel()
         label.text = "No measurements yet\nStart your first measurement"
@@ -78,11 +89,13 @@ class HistoryViewController: UIViewController {
         
         view.addSubview(backButton)
         view.addSubview(headerLabel)
+        view.addSubview(tipLabel)
         view.addSubview(tableView)
         view.addSubview(emptyStateLabel)
         
         tableView.delegate = self
         tableView.dataSource = self
+        tableView.sectionHeaderTopPadding = 8
         
         setupConstraints()
         
@@ -92,6 +105,7 @@ class HistoryViewController: UIViewController {
     private func setupConstraints() {
         backButton.translatesAutoresizingMaskIntoConstraints = false
         headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        tipLabel.translatesAutoresizingMaskIntoConstraints = false
         tableView.translatesAutoresizingMaskIntoConstraints = false
         emptyStateLabel.translatesAutoresizingMaskIntoConstraints = false
         
@@ -104,7 +118,11 @@ class HistoryViewController: UIViewController {
             headerLabel.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 60),
             headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             
-            tableView.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 30),
+            tipLabel.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 8),
+            tipLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
+            tipLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
+            
+            tableView.topAnchor.constraint(equalTo: tipLabel.bottomAnchor, constant: 16),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
             tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
@@ -119,15 +137,15 @@ class HistoryViewController: UIViewController {
         readings = BloodPressureReading.load()
         print("📊 [HistoryVC] Loaded \(readings.count) readings")
         
-        // Log recent readings
-        for (index, reading) in readings.prefix(3).enumerated() {
-            print("   \(index + 1). \(reading.formattedValue) mmHg - \(reading.category)")
-        }
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: readings) { calendar.startOfDay(for: $0.timestamp) }
+        sections = grouped.sorted { $0.key > $1.key }.map { (date: $0.key, readings: $0.value.sorted { $0.timestamp > $1.timestamp }) }
         
         tableView.reloadData()
         
         emptyStateLabel.isHidden = !readings.isEmpty
         tableView.isHidden = readings.isEmpty
+        tipLabel.isHidden = readings.isEmpty
     }
     
     @objc private func backTapped() {
@@ -139,21 +157,52 @@ class HistoryViewController: UIViewController {
 }
 
 extension HistoryViewController: UITableViewDelegate, UITableViewDataSource {
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return sections.count
+    }
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return readings.count
+        let dayReadings = sections[section].readings
+        let hasAvg = dayReadings.count >= 2
+        return dayReadings.count + (hasAvg ? 1 : 0)
+    }
+    
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d, yyyy"
+        let label = UILabel()
+        label.text = "  \(formatter.string(from: sections[section].date))"
+        label.font = .systemFont(ofSize: UIScreen.adaptiveFont(small: 16, regular: 18, large: 20), weight: .semibold)
+        label.textColor = UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0)
+        label.backgroundColor = UIColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1.0)
+        return label
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 36
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ModernHistoryCell", for: indexPath) as! ModernHistoryCell
-        cell.configure(with: readings[indexPath.row])
+        let dayReadings = sections[indexPath.section].readings
+        let hasAvg = dayReadings.count >= 2
+        if hasAvg && indexPath.row == dayReadings.count {
+            let avgSys = dayReadings.map(\.systolic).reduce(0, +) / dayReadings.count
+            let avgDia = dayReadings.map(\.diastolic).reduce(0, +) / dayReadings.count
+            let avgPul = dayReadings.map(\.pulse).reduce(0, +) / dayReadings.count
+            cell.configureAsDailyAverage(systolic: avgSys, diastolic: avgDia, pulse: avgPul, count: dayReadings.count)
+        } else {
+            cell.configure(with: dayReadings[indexPath.row], showTime: true)
+        }
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        
-        // Show detail view
-        let reading = readings[indexPath.row]
+        let dayReadings = sections[indexPath.section].readings
+        let hasAvg = dayReadings.count >= 2
+        if hasAvg && indexPath.row == dayReadings.count { return }
+        let reading = dayReadings[indexPath.row]
         let resultVC = ResultViewController(reading: reading)
         resultVC.modalPresentationStyle = .fullScreen
         present(resultVC, animated: true)
@@ -263,34 +312,42 @@ class ModernHistoryCell: UITableViewCell {
         ])
     }
     
-    func configure(with reading: BloodPressureReading) {
+    func configure(with reading: BloodPressureReading, showTime: Bool = false) {
         valueLabel.text = reading.formattedValue
         valueLabel.textColor = reading.categoryColor
         
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        dateLabel.text = formatter.string(from: reading.timestamp)
-        
         formatter.dateFormat = "hh:mm a"
         let timeString = formatter.string(from: reading.timestamp)
         
-        // Source indicator
         let sourceEmoji: String
         switch reading.source {
-        case "bluetooth":
-            sourceEmoji = "📱"
-        case "simulated":
-            sourceEmoji = "🧪"
-        case "manual":
-            sourceEmoji = "✍️"
-        default:
-            sourceEmoji = "❓"
+        case "bluetooth": sourceEmoji = "📱"
+        case "simulated": sourceEmoji = "🧪"
+        case "manual": sourceEmoji = "✍️"
+        default: sourceEmoji = "❓"
         }
         
-        timeLabel.text = "\(sourceEmoji) \(timeString)"
+        if showTime {
+            dateLabel.text = ""
+            timeLabel.text = "\(sourceEmoji) \(timeString)"
+        } else {
+            formatter.dateFormat = "MMM d, yyyy"
+            dateLabel.text = formatter.string(from: reading.timestamp)
+            timeLabel.text = "\(sourceEmoji) \(timeString)"
+        }
         
         categoryLabel.text = getCategoryEnglish(reading.category)
         categoryBadge.backgroundColor = reading.categoryColor
+    }
+    
+    func configureAsDailyAverage(systolic: Int, diastolic: Int, pulse: Int, count: Int) {
+        valueLabel.text = "\(systolic)/\(diastolic)"
+        valueLabel.textColor = UIColor(red: 0.2, green: 0.4, blue: 0.6, alpha: 1.0)
+        dateLabel.text = ""
+        timeLabel.text = "Daily avg (\(count) readings)"
+        categoryLabel.text = "Avg"
+        categoryBadge.backgroundColor = UIColor(red: 0.2, green: 0.4, blue: 0.6, alpha: 1.0)
     }
     
     private func getCategoryEnglish(_ category: String) -> String {

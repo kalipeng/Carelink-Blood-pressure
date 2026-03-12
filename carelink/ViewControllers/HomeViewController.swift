@@ -204,6 +204,7 @@ class HomeViewController: UIViewController {
     
     // Voice recording state
     private var isRecording = false
+    private var isAnalyzing = false
     private var waveAnimationTimer: Timer?
     
     // MARK: - Lifecycle
@@ -542,6 +543,9 @@ class HomeViewController: UIViewController {
             return
         }
         
+        if isAnalyzing {
+            return
+        }
         if isRecording {
             stopRecording()
         } else {
@@ -583,6 +587,8 @@ class HomeViewController: UIViewController {
     
     private func stopRecording() {
         isRecording = false
+        isAnalyzing = true
+        micButton.isEnabled = false
         
         // Update UI - gray while processing
         micButton.backgroundColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1.0)
@@ -651,6 +657,8 @@ class HomeViewController: UIViewController {
     
     private func resetMicButton() {
         isRecording = false
+        isAnalyzing = false
+        micButton.isEnabled = true
         stopWaveAnimation()
         micButton.setTitle("", for: .normal)
         micButton.backgroundColor = UIColor(red: 0.89, green: 0, blue: 0.45, alpha: 1.0)

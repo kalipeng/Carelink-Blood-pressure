@@ -20,7 +20,7 @@ class AudioRecorderService: NSObject {
     private var silenceCheckTimer: Timer?
     private var silenceStartTime: Date?
     private static let silenceThresholdDB: Float = -40
-    private static let silenceDurationToStop: TimeInterval = 2.0
+    private static let silenceDurationToStop: TimeInterval = 1.0
     
     var isRecording: Bool {
         return audioRecorder?.isRecording ?? false

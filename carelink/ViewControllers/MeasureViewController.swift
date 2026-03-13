@@ -561,6 +561,11 @@ class MeasureViewController: UIViewController {
                 let layer = AVCaptureVideoPreviewLayer(session: session)
                 layer.videoGravity = .resizeAspectFill
                 layer.frame = cameraContainerView.bounds
+                // Mirror preview so it feels natural (like a mirror)
+                if let connection = layer.connection, connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = true
+                }
                 cameraContainerView.layer.insertSublayer(layer, at: 0)
                 previewLayer = layer
             }
@@ -581,6 +586,12 @@ class MeasureViewController: UIViewController {
         
         currentCameraPosition = (currentCameraPosition == .back) ? .front : .back
         configureCamera(position: currentCameraPosition)
+        
+        // Re-apply mirroring after camera switch (connection may reset)
+        if let connection = previewLayer?.connection, connection.isVideoMirroringSupported {
+            connection.automaticallyAdjustsVideoMirroring = false
+            connection.isVideoMirrored = true
+        }
         
         print("📷 [Camera] Switched to \(currentCameraPosition == .front ? "front" : "back") camera")
     }
